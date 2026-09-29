@@ -19,6 +19,8 @@ import { FocusTracker } from "@/components/arc/day/focus-tracker";
 import { SleepTracker } from "@/components/arc/day/sleep-tracker";
 import { JournalBox } from "@/components/arc/day/journal-box";
 import { SleepChart, WeightTrend } from "@/components/arc/day/charts";
+import { DateFlapper } from "@/components/arc/day/date-flapper";
+import { WeeklyHabitGrid, getWeekDays, type HabitGridItem } from "@/components/arc/weekly-habit-grid";
 import { buttonClass } from "@/components/ui/button";
 import { FlameIcon, MountainIcon } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/label";
@@ -96,23 +98,38 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const showMind = !isFuture && (m.focus || m.sleep);
   const showReflection = m.journal && !isFuture;
 
+  const gridHabits: HabitGridItem[] = overview.habits.map((h, i) => ({
+    id: h.id,
+    title: h.title,
+    category: h.category,
+    activeFrom: overview.snapshotHabits[i].activeFrom,
+    deactivatedOn: overview.snapshotHabits[i].deactivatedOn,
+  }));
+
+  const weekDays = getWeekDays(date);
+  const initialDone: Record<string, boolean> = {};
+  for (const day of weekDays) {
+    const doneSet = overview.doneByDay.get(day);
+    if (doneSet) {
+      for (const habitId of doneSet) {
+        initialDone[`${habitId}:${day}`] = true;
+      }
+    }
+  }
+
   return (
     <div className="animate-fade">
       {/* 1 · Arc day, completion, streak */}
       <section aria-labelledby="day-heading">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 id="day-heading" className="tabular text-[1.7rem] font-semibold tracking-tight">
-              Day {dayNumber} <span className="text-muted">/ {arc.length}</span>
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              {isToday
-                ? arc.daysLeft === 0
-                  ? "Final day"
-                  : `${arc.daysLeft} ${arc.daysLeft === 1 ? "day" : "days"} remaining`
-                : formatDay(date, { weekday: "long", month: "long", day: "numeric" })}
-            </p>
-          </div>
+          <DateFlapper
+            dayNumber={dayNumber}
+            arcLength={arc.length}
+            date={date}
+            isToday={isToday}
+            daysRemaining={arc.daysLeft}
+            isFuture={isFuture}
+          />
           <DayNav
             prev={date > arc.startDate ? addDays(date, -1) : null}
             next={date < arc.endDate ? addDays(date, 1) : null}
@@ -255,6 +272,16 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
 
       {/* 4 · Week and Arc */}
       <div className="mt-6 space-y-6">
+        <DaySection title="Weekly Grid">
+          <WeeklyHabitGrid
+            selectedDate={date}
+            today={arc.today}
+            startDate={arc.startDate}
+            endDate={arc.endDate}
+            habits={gridHabits}
+            initialDone={initialDone}
+          />
+        </DaySection>
         <DaySection title="Last 7 days">
           <WeeklyBlock overview={overview} end={isFuture ? arc.today : date} />
         </DaySection>

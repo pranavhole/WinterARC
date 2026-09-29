@@ -204,18 +204,17 @@ function Trends({ overview }: { overview: ArcOverview }) {
         <span id="trends-heading">Trends</span>
       </SectionLabel>
 
-      <Chart title="Daily completion" note={`Last ${span} days`}>
+      <Chart title="Daily completion" note={`Streak line 80% · Last ${span} days`}>
         <DailyBars
           days={completion}
           max={100}
           goal={80}
-          goalLabel="Streak 80%"
           label={`Daily completion over the last ${span} days, with the 80% streak line.`}
         />
       </Chart>
 
       {m.sleep ? (
-        <Chart title="Sleep" note={`Goal ${formatDuration(arc.goals.sleepGoal * 60)}`}>
+        <Chart title="Sleep" note={`Goal ${formatDuration(arc.goals.sleepGoal * 60)} · Last ${span} nights`}>
           <SleepChart
             goal={arc.goals.sleepGoal}
             nights={keys.map((key) => {
@@ -227,7 +226,7 @@ function Trends({ overview }: { overview: ArcOverview }) {
       ) : null}
 
       {m.steps ? (
-        <Chart title="Steps" note={`Goal ${formatSteps(arc.goals.stepGoal)}`}>
+        <Chart title="Steps" note={`Goal ${formatSteps(arc.goals.stepGoal)} · Last ${span} days`}>
           <DailyBars
             days={keys.map((key) => {
               const r = rec(key);
@@ -235,14 +234,20 @@ function Trends({ overview }: { overview: ArcOverview }) {
               return { key, value: r?.steps ?? null, met: (r?.steps ?? 0) >= goal };
             })}
             goal={arc.goals.stepGoal}
-            goalLabel={formatSteps(arc.goals.stepGoal)}
             label={`Steps over the last ${span} days against a goal of ${formatSteps(arc.goals.stepGoal)}.`}
           />
         </Chart>
       ) : null}
 
       {m.focus ? (
-        <Chart title={focus.metric} note="Hours per day">
+        <Chart
+          title={focus.metric}
+          note={
+            arc.goals.focusGoalWeekday === arc.goals.focusGoalWeekend
+              ? `Goal ${formatHours(arc.goals.focusGoalWeekday)} · Last ${span} days`
+              : `Last ${span} days`
+          }
+        >
           <DailyBars
             days={keys.map((key) => {
               const r = rec(key);
@@ -250,7 +255,6 @@ function Trends({ overview }: { overview: ArcOverview }) {
               return { key, value: r?.studyHours ?? null, met: (r?.studyHours ?? 0) >= goal };
             })}
             goal={arc.goals.focusGoalWeekday === arc.goals.focusGoalWeekend ? arc.goals.focusGoalWeekday : null}
-            goalLabel={formatHours(arc.goals.focusGoalWeekday)}
             label={`${focus.metric} hours over the last ${span} days.`}
           />
         </Chart>

@@ -74,7 +74,7 @@ export function DailyBars({
         </svg>
         {goalPct !== null && goalLabel ? (
           <span
-            className="absolute right-0 -translate-y-full pb-0.5 text-[0.6875rem] text-muted"
+            className="pointer-events-none absolute right-1 -translate-y-full rounded bg-bg/90 px-1 py-0.5 text-[0.625rem] font-medium text-muted shadow-xs backdrop-blur-xs"
             style={{ top: `${100 - goalPct}%` }}
           >
             {goalLabel}
@@ -95,10 +95,12 @@ export function SleepChart({
   nights,
   goal,
   height,
+  showGoalLabel = false,
 }: {
   nights: { key: DayKey; minutes: number | null }[];
   goal: number;
   height?: string;
+  showGoalLabel?: boolean;
 }) {
   const logged = nights.filter((n) => n.minutes !== null);
   const avg = logged.length ? logged.reduce((s, n) => s + n.minutes!, 0) / logged.length : null;
@@ -112,9 +114,9 @@ export function SleepChart({
           met: n.minutes !== null && n.minutes / 60 >= goal,
         }))}
         goal={goal}
-        goalLabel={`Goal ${formatDuration(goal * 60)}`}
+        goalLabel={showGoalLabel ? `Goal ${formatDuration(goal * 60)}` : undefined}
         label={`Sleep over the last ${nights.length} days. ${logged.length} nights logged, average ${formatDuration(avg)}, goal ${formatDuration(goal * 60)}.`}
-        caption={`Last ${nights.length} nights${avg !== null ? ` · average ${formatDuration(avg)}` : ""}`}
+        caption={`Last ${nights.length} nights${avg !== null ? ` · average ${formatDuration(avg)}` : ""} · Goal ${formatDuration(goal * 60)}`}
       />
     </div>
   );
