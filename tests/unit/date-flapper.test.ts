@@ -59,6 +59,7 @@ describe("DateFlapper", () => {
     const card = FlapCard({ text: "0", size: "lg" });
     expect(card).toBeDefined();
     expect(card.props.className).toContain("font-mono");
-    expect(card.props.className).toContain("bg-[#181816]");
+    expect(card.props.className).toContain("bg-surface");
+    expect(card.props.className).toContain("text-fg");
   });
 });

@@ -105,7 +105,7 @@ export function FlapCard({
 
   return (
     <span
-      className={`relative inline-flex items-center justify-center [perspective:300px] overflow-hidden rounded-[5px] bg-[#181816] font-mono font-bold tabular-nums text-[#f7f5f0] shadow-xs select-none border border-black/40 ${
+      className={`relative inline-flex items-center justify-center [perspective:320px] overflow-hidden rounded-[6px] bg-surface font-mono font-bold tabular-nums text-fg shadow-xs select-none border border-line ${
         isLarge
           ? "h-9 min-w-7 px-1 text-xl sm:h-10 sm:min-w-8 sm:text-2xl"
           : wide
@@ -117,30 +117,30 @@ export function FlapCard({
         key={text}
         className="animate-flap-flip flex h-full w-full items-center justify-center"
       >
-        {/* Top half subtle lighting overlay */}
+        {/* Top half subtle tint for mechanical two-leaf effect */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/[0.04]"
+          className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-subtle/50 border-b border-line/70"
         />
 
-        {/* Center split line */}
+        {/* Center split line with subtle bottom highlight */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-black/60 shadow-[0_0.5px_0_rgba(255,255,255,0.08)]"
+          className="pointer-events-none absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-line shadow-[0_1px_0_rgba(255,255,255,0.9)]"
         />
 
-        {/* Mechanical side notches */}
+        {/* Mechanical side notches at the hinge */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
+          className="pointer-events-none absolute left-0 top-1/2 h-1.5 w-[2px] -translate-y-1/2 rounded-r-xs bg-bg"
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute right-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
+          className="pointer-events-none absolute right-0 top-1/2 h-1.5 w-[2px] -translate-y-1/2 rounded-l-xs bg-bg"
         />
 
-        {/* The character/text */}
-        <span className="relative z-10 leading-none tracking-tight">{text}</span>
+        {/* The character/text in deep sharp ink */}
+        <span className="relative z-10 leading-none tracking-tight text-fg font-extrabold">{text}</span>
       </span>
     </span>
   );
