@@ -13,16 +13,26 @@ import { dateToKey, diffDays, isValidTimeZone, keyToDate, todayKey } from "@/lib
  * no OAuth or session tokens. Rows reference each other by backup-local refs.
  */
 
-export const BACKUP_VERSION = 1;
-export const BACKUP_MAX_BYTES = 3 * 1024 * 1024;
+export const BACKUP_VERSION = 2;
+export const BACKUP_MAX_BYTES = 5 * 1024 * 1024;
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((k) => dateToKey(keyToDate(k)) === k, "Invalid date");
+const day = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((k) => {
+    try {
+      const d = keyToDate(k);
+      return !isNaN(d.getTime()) && dateToKey(d) === k;
+    } catch {
+      return false;
+    }
+  }, "Invalid date");
 const ref = z.string().min(1).max(40);
 const minutes = z.number().int().min(0).max(1439).nullable();
 
 const backupSchema = z
   .object({
-    version: z.literal(BACKUP_VERSION),
+    version: z.union([z.literal(1), z.literal(2)]),
     exportedAt: z.string().max(40),
     arc: z.object({
       startDate: day,
@@ -104,6 +114,61 @@ const backupSchema = z
       )
       .max(60)
       .default([]),
+    posts: z
+      .array(
+        z.object({
+          type: z.enum(["PROGRESS", "MILESTONE", "BADGE", "REFLECTION", "CUSTOM"]),
+          content: z.string().max(500),
+          visibility: z.enum(["PUBLIC", "FRIENDS", "PRIVATE"]),
+          milestoneType: z.string().nullable().default(null),
+          badgeKey: z.string().nullable().default(null),
+          dayNumber: z.number().int().nullable().default(null),
+          arcLength: z.number().int().nullable().default(null),
+          streak: z.number().int().nullable().default(null),
+          createdAt: z.string().max(40),
+        }),
+      )
+      .max(1000)
+      .default([]),
+    xpLedger: z
+      .array(
+        z.object({
+          type: z.string().max(64),
+          amount: z.number().int(),
+          referenceType: z.string().max(64),
+          referenceId: z.string().max(64),
+          key: z.string().max(128),
+          createdAt: z.string().max(40),
+        }),
+      )
+      .max(50000)
+      .default([]),
+    badges: z
+      .array(
+        z.object({
+          badgeKey: z.string().max(64),
+          earnedAt: z.string().max(40),
+        }),
+      )
+      .max(100)
+      .default([]),
+    healthMetrics: z
+      .array(
+        z.object({
+          date: day,
+          steps: z.number().int().min(0).max(200000).nullable().default(null),
+          sleepMinutes: z.number().int().min(0).max(1440).nullable().default(null),
+          sleepStart: z.string().max(40).nullable().default(null),
+          sleepEnd: z.string().max(40).nullable().default(null),
+          exerciseMinutes: z.number().int().min(0).max(1440).nullable().default(null),
+          exerciseSessions: z.number().int().min(0).max(50).nullable().default(null),
+          weight: z.number().gt(0).max(500).nullable().default(null),
+          source: z.enum(["GOOGLE_HEALTH", "HEALTH_CONNECT"]),
+          syncedAt: z.string().max(40),
+        }),
+      )
+      .max(400)
+      .default([]),
   })
   .superRefine((b, ctx) => {
     const length = diffDays(b.arc.startDate, b.arc.endDate) + 1;
@@ -147,13 +212,17 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
     (await prisma.arc.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }));
   if (!arc) return null;
 
-  const [answers, habits, logs, records, tasks, blocks] = await Promise.all([
+  const [answers, habits, logs, records, tasks, blocks, posts, xpEvents, userBadges, healthMetrics] = await Promise.all([
     prisma.assessmentAnswer.findMany({ where: { arcId: arc.id } }),
     prisma.habit.findMany({ where: { arcId: arc.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
     prisma.habitLog.findMany({ where: { userId, habit: { arcId: arc.id } }, orderBy: { date: "asc" } }),
     prisma.dailyRecord.findMany({ where: { userId, arcId: arc.id }, orderBy: { date: "asc" } }),
     prisma.dailyTask.findMany({ where: { userId, arcId: arc.id }, orderBy: [{ date: "asc" }, { createdAt: "asc" }] }),
     prisma.timeBlock.findMany({ where: { userId, arcId: arc.id }, orderBy: { start: "asc" } }),
+    prisma.post.findMany({ where: { authorId: userId }, orderBy: { createdAt: "asc" } }),
+    prisma.xPEvent.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
+    prisma.userBadge.findMany({ where: { userId }, include: { badge: { select: { key: true } } }, orderBy: { earnedAt: "asc" } }),
+    prisma.healthDailyMetric.findMany({ where: { userId }, orderBy: { date: "asc" } }),
   ]);
 
   const habitRef = new Map(habits.map((h, i) => [h.id, `h${i + 1}`]));
@@ -223,6 +292,41 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
       end: b.end,
       days: b.days,
       habit: b.habitId ? (habitRef.get(b.habitId) ?? null) : null,
+    })),
+    posts: posts.map((p) => ({
+      type: p.type,
+      content: p.content,
+      visibility: p.visibility,
+      milestoneType: p.milestoneType,
+      badgeKey: p.badgeKey,
+      dayNumber: p.dayNumber,
+      arcLength: p.arcLength,
+      streak: p.streak,
+      createdAt: p.createdAt.toISOString(),
+    })),
+    xpLedger: xpEvents.map((x) => ({
+      type: x.type,
+      amount: x.amount,
+      referenceType: x.referenceType,
+      referenceId: x.referenceId,
+      key: x.key,
+      createdAt: x.createdAt.toISOString(),
+    })),
+    badges: userBadges.map((b) => ({
+      badgeKey: b.badge.key,
+      earnedAt: b.earnedAt.toISOString(),
+    })),
+    healthMetrics: healthMetrics.map((h) => ({
+      date: dateToKey(h.date),
+      steps: h.steps,
+      sleepMinutes: h.sleepMinutes,
+      sleepStart: h.sleepStart?.toISOString() ?? null,
+      sleepEnd: h.sleepEnd?.toISOString() ?? null,
+      exerciseMinutes: h.exerciseMinutes,
+      exerciseSessions: h.exerciseSessions,
+      weight: h.weight,
+      source: h.source,
+      syncedAt: h.syncedAt.toISOString(),
     })),
   };
 }
@@ -332,6 +436,82 @@ export async function restoreBackup(userId: string, b: Backup): Promise<void> {
           arcId: arc.id,
         })),
       });
+
+      if (b.posts && b.posts.length > 0) {
+        await tx.post.createMany({
+          data: b.posts.map((p) => ({
+            authorId: userId,
+            arcId: arc.id,
+            type: p.type,
+            content: p.content,
+            visibility: p.visibility,
+            milestoneType: p.milestoneType,
+            badgeKey: p.badgeKey,
+            dayNumber: p.dayNumber,
+            arcLength: p.arcLength,
+            streak: p.streak,
+            createdAt: new Date(p.createdAt),
+          })),
+        });
+      }
+
+      if (b.xpLedger && b.xpLedger.length > 0) {
+        await tx.xPEvent.createMany({
+          data: b.xpLedger.map((x) => ({
+            userId,
+            arcId: arc.id,
+            type: x.type,
+            amount: x.amount,
+            referenceType: x.referenceType,
+            referenceId: x.referenceId,
+            key: x.key,
+            createdAt: new Date(x.createdAt),
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (b.badges && b.badges.length > 0) {
+        const dbBadges = await tx.badge.findMany({
+          where: { key: { in: b.badges.map((x) => x.badgeKey) } },
+          select: { id: true, key: true },
+        });
+        const badgeMap = new Map(dbBadges.map((dbB) => [dbB.key, dbB.id]));
+        const badgeData = b.badges
+          .filter((x) => badgeMap.has(x.badgeKey))
+          .map((x) => ({
+            userId,
+            badgeId: badgeMap.get(x.badgeKey)!,
+            arcId: arc.id,
+            earnedAt: new Date(x.earnedAt),
+          }));
+        if (badgeData.length > 0) {
+          await tx.userBadge.createMany({
+            data: badgeData,
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (b.healthMetrics && b.healthMetrics.length > 0) {
+        await tx.healthDailyMetric.createMany({
+          data: b.healthMetrics.map((h) => ({
+            userId,
+            date: keyToDate(h.date),
+            steps: h.steps,
+            sleepMinutes: h.sleepMinutes,
+            sleepStart: h.sleepStart ? new Date(h.sleepStart) : null,
+            sleepEnd: h.sleepEnd ? new Date(h.sleepEnd) : null,
+            exerciseMinutes: h.exerciseMinutes,
+            exerciseSessions: h.exerciseSessions,
+            weight: h.weight,
+            source: h.source,
+            sourceRecordHash: `backup-restored-${h.date}`,
+            syncedAt: new Date(h.syncedAt),
+          })),
+          skipDuplicates: true,
+        });
+      }
     },
     { timeout: 30_000 },
   );
