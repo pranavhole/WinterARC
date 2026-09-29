@@ -1,0 +1,628 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth.js ────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Public handle for /u/[username]. Assigned on first social use.
+  username String? @unique
+
+  // Privacy. Everything social is opt-down from these defaults.
+  profileVisibility     Visibility            @default(FRIENDS)
+  leaderboardVisibility LeaderboardVisibility @default(SHOW)
+  showXp                Boolean               @default(true)
+  showStreak            Boolean               @default(true)
+  showBadges            Boolean               @default(true)
+  showArcDay            Boolean               @default(true)
+
+  // Cached aggregates. XPEvent is the source of truth for XP; the stats
+  // snapshot is refreshed whenever the achievement engine runs and is read by
+  // leaderboards and profiles, so they never recompute other users' Arcs.
+  totalXp            Int       @default(0)
+  currentLevel       Int       @default(1)
+  statsArcDay        Int?
+  statsArcLength     Int?
+  statsStreak        Int       @default(0)
+  // Last day (in the Arc's timezone) the cached streak counted through.
+  statsStreakThrough DateTime? @db.Date
+  statsTimezone      String?
+  statsAvgCompletion Float?
+  statsUpdatedAt     DateTime?
+
+  accounts     Account[]
+  sessions     Session[]
+  arcs         Arc[]
+  habitLogs    HabitLog[]
+  dailyRecords DailyRecord[]
+  dailyTasks   DailyTask[]
+  timeBlocks   TimeBlock[]
+
+  xpEvents           XPEvent[]
+  badges             UserBadge[]
+  sentRequests       FriendRequest[]     @relation("sentRequests")
+  receivedRequests   FriendRequest[]     @relation("receivedRequests")
+  friendships        Friendship[]        @relation("friendships")
+  friendOf           Friendship[]        @relation("friendOf")
+  posts              Post[]
+  reactions          PostReaction[]
+  notifications      Notification[]      @relation("notifications")
+  actedNotifications Notification[]      @relation("actedNotifications")
+  healthConnections  HealthConnection[]
+  healthMetrics      HealthDailyMetric[]
+  healthDevices      HealthDeviceToken[]
+  linkedIn           LinkedInConnection?
+  rateLimits         RateLimit[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── ARC ────────────────────────────────────────────────────────────────────
+
+enum ArcStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum HabitCategory {
+  HEALTH
+  FITNESS
+  FOCUS
+  CAREER
+  LEARNING
+  SLEEP
+  DISCIPLINE
+  MENTAL
+  DIGITAL
+  LIFESTYLE
+  CUSTOM
+}
+
+model Arc {
+  id        String    @id @default(cuid())
+  userId    String
+  startDate DateTime  @db.Date
+  endDate   DateTime  @db.Date
+  status    ArcStatus @default(ACTIVE)
+  statement String    @db.Text
+  // IANA timezone captured when the Arc began. Defines what "today" means.
+  timezone  String    @default("UTC")
+
+  // Which tracking modules this Arc uses. See lib/modules.ts.
+  modules          Json    @default("{\"sleep\":true,\"tasks\":true,\"journal\":true}")
+  // What focused time is for: STUDY, CODING, READING, CREATIVE, CAREER.
+  focusKind        String?
+  stepGoal         Int     @default(10000)
+  sleepGoal        Float   @default(7.5)
+  focusGoalWeekday Float   @default(2)
+  focusGoalWeekend Float   @default(2)
+  dsaGoal          Int     @default(2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers      AssessmentAnswer[]
+  habits       Habit[]
+  dailyRecords DailyRecord[]
+  dailyTasks   DailyTask[]
+  timeBlocks   TimeBlock[]
+  xpEvents     XPEvent[]
+  posts        Post[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model AssessmentAnswer {
+  id          String   @id @default(cuid())
+  arcId       String
+  questionKey String
+  answer      Json
+  createdAt   DateTime @default(now())
+
+  arc Arc @relation(fields: [arcId], references: [id], onDelete: Cascade)
+
+  @@unique([arcId, questionKey])
+  @@index([arcId])
+}
+
+model Habit {
+  id                String           @id @default(cuid())
+  arcId             String
+  title             String
+  description       String?
+  category          HabitCategory
+  position          Int
+  // Which answers led to this rule (generated rules only).
+  reason            String?
+  active            Boolean          @default(true)
+  // First day this rule counts toward daily completion.
+  activeFrom        DateTime         @db.Date
+  // First day this rule no longer counts. Past logs are kept.
+  deactivatedOn     DateTime?        @db.Date
+  // Health-connected rules complete themselves from imported health data.
+  integrationType   HabitIntegration @default(NONE)
+  // Steps, or minutes of sleep / exercise. Null = the Arc's goal (steps, sleep) or any session (exercise).
+  integrationTarget Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  arc        Arc         @relation(fields: [arcId], references: [id], onDelete: Cascade)
+  logs       HabitLog[]
+  timeBlocks TimeBlock[]
+
+  @@index([arcId])
+}
+
+model HabitLog {
+  id        String    @id @default(cuid())
+  habitId   String
+  userId    String
+  date      DateTime  @db.Date
+  completed Boolean   @default(false)
+  // HEALTH when set by a health sync. A manual toggle wins and is never overwritten by a sync.
+  source    LogSource @default(MANUAL)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([habitId])
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+// One row per Arc day holding every metric and the journal.
+// The goal columns snapshot the Arc settings for that day, so changing a goal
+// or disabling a module later never rewrites past scores. Null = not tracked.
+model DailyRecord {
+  id     String   @id @default(cuid())
+  userId String
+  arcId  String
+  date   DateTime @db.Date
+
+  steps        Int?
+  weight       Float?
+  studyHours   Float?
+  dsaProblems  Int?
+  // Minutes after midnight. Bedtime is the night before `date`.
+  bedtime      Int?
+  wakeTime     Int?
+  sleepQuality Int?
+  journal      String?    @db.Text
+  // HEALTH when the value came from a health sync; a manual edit clears it.
+  stepsSource  LogSource?
+  sleepSource  LogSource?
+  weightSource LogSource?
+
+  stepGoal   Int?
+  sleepGoal  Float?
+  focusGoal  Float?
+  dsaGoal    Int?
+  trackTasks Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  arc  Arc  @relation(fields: [arcId], references: [id], onDelete: Cascade)
+
+  @@unique([arcId, date])
+  @@index([userId, date])
+}
+
+model DailyTask {
+  id            String    @id @default(cuid())
+  userId        String
+  arcId         String
+  date          DateTime  @db.Date
+  title         String
+  note          String?
+  // Optional time of day (minutes after midnight) and length in minutes.
+  startTime     Int?
+  duration      Int?
+  completed     Boolean   @default(false)
+  // Set on a copy made by "Move unfinished to tomorrow".
+  carriedFromId String?   @unique
+  // Set on the original once it has been carried forward.
+  carriedTo     DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  arc  Arc  @relation(fields: [arcId], references: [id], onDelete: Cascade)
+
+  @@index([arcId, date])
+  @@index([userId])
+}
+
+enum BlockDays {
+  EVERYDAY
+  WEEKDAYS
+  WEEKENDS
+}
+
+// The daily timetable: a repeating template of time blocks.
+model TimeBlock {
+  id      String    @id @default(cuid())
+  userId  String
+  arcId   String
+  days    BlockDays @default(EVERYDAY)
+  // Minutes after midnight. A block may end after midnight (end < start).
+  start   Int
+  end     Int
+  title   String
+  note    String?
+  // Checking this block off checks off the linked rule.
+  habitId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  arc   Arc    @relation(fields: [arcId], references: [id], onDelete: Cascade)
+  habit Habit? @relation(fields: [habitId], references: [id], onDelete: SetNull)
+
+  @@index([arcId])
+  @@index([userId])
+  @@index([habitId])
+}
+
+enum HabitIntegration {
+  NONE
+  STEPS
+  SLEEP
+  EXERCISE
+}
+
+enum LogSource {
+  MANUAL
+  HEALTH
+}
+
+// ─── Gamification ───────────────────────────────────────────────────────────
+
+// Immutable XP ledger. `key` makes every award idempotent: the same
+// achievement (event type + reference) can never pay out twice.
+model XPEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  arcId         String?
+  type          String
+  amount        Int
+  referenceType String
+  referenceId   String
+  key           String
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  arc  Arc? @relation(fields: [arcId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, key])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([arcId])
+}
+
+// Badge definitions live in code (lib/gamification/badges.ts) and are synced
+// into this table so UserBadge has a stable foreign key.
+model Badge {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  description String
+  icon        String
+  xpReward    Int
+  category    String
+  position    Int    @default(0)
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id       String    @id @default(cuid())
+  userId   String
+  badgeId  String
+  arcId    String?
+  earnedAt DateTime  @default(now())
+  // Null until the unlock moment has been shown.
+  seenAt   DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([earnedAt])
+}
+
+// ─── Social ─────────────────────────────────────────────────────────────────
+
+enum Visibility {
+  PUBLIC
+  FRIENDS
+  PRIVATE
+}
+
+enum LeaderboardVisibility {
+  SHOW
+  ANONYMOUS
+  HIDDEN
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  senderId   String
+  receiverId String
+  // The two user ids sorted and joined: one request per pair, in either direction.
+  pairKey    String              @unique
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  sender   User @relation("sentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("receivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, status])
+  @@index([senderId, status])
+}
+
+// Stored in both directions so "my friends" is one indexed lookup.
+model Friendship {
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+
+  user   User @relation("friendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("friendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@id([userId, friendId])
+  @@index([friendId])
+}
+
+enum PostType {
+  PROGRESS
+  MILESTONE
+  BADGE
+  REFLECTION
+  CUSTOM
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  authorId      String
+  type          PostType
+  content       String     @db.Text
+  visibility    Visibility @default(FRIENDS)
+  arcId         String?
+  // DAY_30, STREAK_7, ARC_COMPLETE… The snapshot values below are frozen at post time.
+  milestoneType String?
+  badgeKey      String?
+  dayNumber     Int?
+  arcLength     Int?
+  streak        Int?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  arc       Arc?           @relation(fields: [arcId], references: [id], onDelete: SetNull)
+  reactions PostReaction[]
+
+  @@index([authorId, createdAt])
+  @@index([visibility, createdAt])
+  @@index([createdAt])
+}
+
+enum ReactionType {
+  CLAP
+  FIRE
+  STRONG
+}
+
+model PostReaction {
+  id        String       @id @default(cuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  REACTION
+  BADGE
+  STREAK
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  actorId     String?
+  type        NotificationType
+  referenceId String?
+  // Set for notifications that must only ever be sent once.
+  dedupeKey   String?
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  user  User  @relation("notifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("actedNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, read, createdAt])
+}
+
+// ─── Integrations ───────────────────────────────────────────────────────────
+
+enum HealthProviderKind {
+  GOOGLE_HEALTH
+  HEALTH_CONNECT
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  EXPIRED
+}
+
+// Tokens are AES-256-GCM encrypted (lib/crypto.ts) and never leave the server.
+model HealthConnection {
+  id                    String             @id @default(cuid())
+  userId                String
+  provider              HealthProviderKind
+  providerUserId        String?
+  accessTokenEncrypted  String?            @db.Text
+  refreshTokenEncrypted String?            @db.Text
+  expiresAt             DateTime?
+  // Space-separated granted scopes (Google) or permission names (Health Connect).
+  scopes                String             @default("")
+  // Data types the user chose to import: steps, sleep, exercise, weight (space-separated).
+  dataTypes             String             @default("")
+  status                ConnectionStatus   @default(ACTIVE)
+  lastSyncedAt          DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([lastSyncedAt])
+}
+
+// ARC's normalized daily summary of imported health data. Raw provider records are not stored.
+model HealthDailyMetric {
+  id               String             @id @default(cuid())
+  userId           String
+  date             DateTime           @db.Date
+  steps            Int?
+  sleepMinutes     Int?
+  // Main sleep session, used for bedtime / wake time on the day record.
+  sleepStart       DateTime?
+  sleepEnd         DateTime?
+  exerciseMinutes  Int?
+  exerciseSessions Int?
+  weight           Float?
+  source           HealthProviderKind
+  // Hash of the provider records this summary was built from. Same hash = nothing to do.
+  sourceRecordHash String
+  syncedAt         DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// Credential for the Android Health Connect bridge. Only a SHA-256 hash is stored.
+model HealthDeviceToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LinkedInConnection {
+  id                   String           @id @default(cuid())
+  userId               String           @unique
+  memberId             String
+  name                 String?
+  accessTokenEncrypted String           @db.Text
+  expiresAt            DateTime
+  scopes               String
+  status               ConnectionStatus @default(ACTIVE)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Fixed-window counters (lib/rate-limit.ts), shared by every server instance.
+model RateLimit {
+  userId      String
+  bucket      String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bucket, windowStart])
+  @@index([windowStart])
+}
