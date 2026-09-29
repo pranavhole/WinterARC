@@ -4,8 +4,8 @@ vi.mock("@/lib/actions/habits", () => ({
   toggleHabit: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-import { getMondayOf, getWeekDays, type HabitGridItem } from "@/components/arc/weekly-habit-grid";
-import { formatDay } from "@/lib/utils";
+import { getMondayOf, getWeekDays, formatDay } from "@/lib/utils";
+import type { HabitGridItem } from "@/components/arc/weekly-habit-grid";
 
 describe("WeeklyHabitGrid date helpers", () => {
   it("resolves the Monday of the week correctly across various days", () => {

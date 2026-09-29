@@ -19,6 +19,30 @@
   --animate-fade: fade 240ms ease-out;
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
   --animate-unlock: unlock 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-flap-flip: flap-flip 260ms cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+@keyframes flap-flip {
+  0% {
+    transform: rotateX(85deg);
+    filter: brightness(0.6);
+    opacity: 0.8;
+  }
+  65% {
+    transform: rotateX(-8deg);
+    filter: brightness(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateX(0deg);
+    filter: brightness(1);
+    opacity: 1;
+  }
+}
+
+.animate-flap-flip {
+  transform-origin: 50% 50%;
+  will-change: transform, filter;
 }
 
 @keyframes pop {

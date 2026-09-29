@@ -2,9 +2,11 @@
 
 import { useOptimistic, useTransition, useState } from "react";
 import { toggleHabit } from "@/lib/actions/habits";
-import { addDays, cn, formatDay, keyToDate, type DayKey } from "@/lib/utils";
+import { cn, formatDay, getMondayOf, getWeekDays, type DayKey } from "@/lib/utils";
 import { CheckIcon } from "@/components/ui/icons";
 import type { HabitCategoryValue } from "@/lib/arc-engine";
+
+export { getMondayOf, getWeekDays };
 
 export type HabitGridItem = {
   id: string;
@@ -13,20 +15,6 @@ export type HabitGridItem = {
   activeFrom: DayKey;
   deactivatedOn: DayKey | null;
 };
-
-/** Get the Monday of the calendar week containing the given date */
-export function getMondayOf(key: DayKey): DayKey {
-  const d = keyToDate(key);
-  const dayOfWeek = d.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const offset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  return addDays(key, offset);
-}
-
-/** 7 days from Monday to Sunday */
-export function getWeekDays(key: DayKey): DayKey[] {
-  const monday = getMondayOf(key);
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-}
 
 type ToggleRecord = Record<string, boolean>; // key: `${habitId}:${dayKey}` -> completed
 

@@ -105,7 +105,7 @@ export function FlapCard({
 
   return (
     <span
-      className={`relative inline-flex items-center justify-center overflow-hidden rounded-[5px] bg-[#181816] font-mono font-bold tabular-nums text-[#f7f5f0] shadow-xs select-none border border-black/40 ${
+      className={`relative inline-flex items-center justify-center [perspective:300px] overflow-hidden rounded-[5px] bg-[#181816] font-mono font-bold tabular-nums text-[#f7f5f0] shadow-xs select-none border border-black/40 ${
         isLarge
           ? "h-9 min-w-7 px-1 text-xl sm:h-10 sm:min-w-8 sm:text-2xl"
           : wide
@@ -113,30 +113,35 @@ export function FlapCard({
           : "h-7 min-w-6 px-1 text-xs sm:h-8 sm:min-w-7 sm:text-xs"
       }`}
     >
-      {/* Top half subtle lighting overlay */}
       <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/[0.04]"
-      />
+        key={text}
+        className="animate-flap-flip flex h-full w-full items-center justify-center"
+      >
+        {/* Top half subtle lighting overlay */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/[0.04]"
+        />
 
-      {/* Center split line */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-black/60 shadow-[0_0.5px_0_rgba(255,255,255,0.08)]"
-      />
+        {/* Center split line */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-black/60 shadow-[0_0.5px_0_rgba(255,255,255,0.08)]"
+        />
 
-      {/* Mechanical side notches */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
-      />
+        {/* Mechanical side notches */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 top-1/2 h-1 w-[1.5px] -translate-y-1/2 bg-bg/80"
+        />
 
-      {/* The character/text */}
-      <span className="relative z-10 leading-none tracking-tight">{text}</span>
+        {/* The character/text */}
+        <span className="relative z-10 leading-none tracking-tight">{text}</span>
+      </span>
     </span>
   );
 }

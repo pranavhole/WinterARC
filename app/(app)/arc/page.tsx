@@ -6,7 +6,7 @@ import { getArcOverview, getLatestFinishedArc, resolveArcDate, type ArcOverview 
 import { focusGoalFor, isWeekend, sleepMinutes } from "@/lib/metrics";
 import { focusLabel } from "@/lib/modules";
 import { percent } from "@/lib/scoring";
-import { addDays, formatDay, localHour, localMinutes, type DayKey } from "@/lib/utils";
+import { addDays, formatDay, getWeekDays, localHour, localMinutes, type DayKey } from "@/lib/utils";
 import { weeklySummary } from "@/lib/weekly";
 import { DayAgenda, type AgendaMood } from "@/components/arc/day/day-agenda";
 import { blocksFor } from "@/lib/timetable";
@@ -20,7 +20,7 @@ import { SleepTracker } from "@/components/arc/day/sleep-tracker";
 import { JournalBox } from "@/components/arc/day/journal-box";
 import { SleepChart, WeightTrend } from "@/components/arc/day/charts";
 import { DateFlapper } from "@/components/arc/day/date-flapper";
-import { WeeklyHabitGrid, getWeekDays, type HabitGridItem } from "@/components/arc/weekly-habit-grid";
+import { WeeklyHabitGrid, type HabitGridItem } from "@/components/arc/weekly-habit-grid";
 import { buttonClass } from "@/components/ui/button";
 import { FlameIcon, MountainIcon } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/label";
