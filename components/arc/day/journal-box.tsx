@@ -26,8 +26,6 @@ export function JournalBox({ date, initial, editable }: { date: string; initial:
         disabled={!editable}
         value={text}
         placeholder="What went well? What will you fix tomorrow?"
-        suppressHydrationWarning
-        data-lpignore="true"
         onChange={(e) => {
           setText(e.target.value);
           schedule(e.target.value);

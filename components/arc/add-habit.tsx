@@ -22,9 +22,6 @@ export function AddHabitInline() {
         type="button"
         onClick={() => setOpen(true)}
         className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-muted hover:text-fg"
-        suppressHydrationWarning
-        data-form-type="other"
-        data-lpignore="true"
       >
         <PlusIcon size={14} /> Add habit
       </button>
@@ -61,24 +58,10 @@ export function AddHabitInline() {
         </p>
       ) : null}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={close}
-          className={buttonClass("secondary", "flex-1")}
-          suppressHydrationWarning
-          data-form-type="other"
-          data-lpignore="true"
-        >
+        <button type="button" onClick={close} className={buttonClass("secondary", "flex-1")}>
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={pending || !form.title.trim()}
-          className={buttonClass("primary", "flex-1")}
-          suppressHydrationWarning
-          data-form-type="other"
-          data-lpignore="true"
-        >
+        <button type="submit" disabled={pending || !form.title.trim()} className={buttonClass("primary", "flex-1")}>
           {pending ? "Adding…" : "Add habit"}
         </button>
       </div>

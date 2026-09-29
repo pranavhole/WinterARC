@@ -31,9 +31,6 @@ export function Counter({
         aria-label={`Decrease ${label}`}
         disabled={disabled || value <= min}
         onClick={() => onChange(round(Math.max(min, value - step)))}
-        suppressHydrationWarning
-        data-form-type="other"
-        data-lpignore="true"
         className={button}
       >
         <span aria-hidden="true" className="block h-[1.75px] w-3.5 rounded bg-current" />
@@ -46,9 +43,6 @@ export function Counter({
         aria-label={`Increase ${label}`}
         disabled={disabled || value >= max}
         onClick={() => onChange(round(Math.min(max, value + step)))}
-        suppressHydrationWarning
-        data-form-type="other"
-        data-lpignore="true"
         className={button}
       >
         <PlusIcon size={15} />

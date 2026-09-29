@@ -282,9 +282,6 @@ export function DayAgenda({
               type="button"
               onClick={() => setAddingTask(true)}
               className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-muted hover:text-fg"
-              suppressHydrationWarning
-              data-form-type="other"
-              data-lpignore="true"
             >
               <PlusIcon size={14} /> Add task
             </button>
@@ -295,9 +292,6 @@ export function DayAgenda({
               disabled={pending}
               onClick={() => run(null, () => carryTasksForward(date))}
               className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-md text-sm text-muted hover:text-fg disabled:opacity-50"
-              suppressHydrationWarning
-              data-form-type="other"
-              data-lpignore="true"
             >
               Move unfinished tasks to tomorrow <ArrowRightIcon size={13} />
             </button>
@@ -373,9 +367,6 @@ function CheckRow({
         aria-label={`${tag}: ${title}${time ? ` at ${minutesToTime(time.start)}` : ""}`}
         disabled={disabled}
         onClick={onToggle}
-        suppressHydrationWarning
-        data-form-type="other"
-        data-lpignore="true"
         className="group flex min-h-15 min-w-0 flex-1 items-start gap-3 py-3.5 text-left disabled:cursor-default disabled:opacity-60 sm:gap-4"
       >
         {time ? <TimeCell start={time.start} end={time.end} /> : null}
@@ -438,9 +429,6 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
       type="button"
       aria-label={label}
       onClick={onClick}
-      suppressHydrationWarning
-      data-form-type="other"
-      data-lpignore="true"
       className="flex h-10 w-10 items-center justify-center rounded-md text-muted hover:text-fg"
     >
       {children}

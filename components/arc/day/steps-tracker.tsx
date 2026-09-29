@@ -56,18 +56,12 @@ export function StepsTracker({
           value={steps ?? ""}
           placeholder="0"
           onChange={(e) => set(e.target.value === "" ? null : Number(e.target.value))}
-          suppressHydrationWarning
-          data-form-type="other"
-          data-lpignore="true"
           className="tabular h-11 w-32 rounded-lg border border-line bg-surface px-3 text-sm focus:border-fg focus:outline-none disabled:opacity-50"
         />
         <button
           type="button"
           disabled={!editable}
           onClick={() => set(current + 1000, true)}
-          suppressHydrationWarning
-          data-form-type="other"
-          data-lpignore="true"
           className={buttonClass("secondary", "px-4")}
         >
           +1k
@@ -76,9 +70,6 @@ export function StepsTracker({
           type="button"
           disabled={!editable}
           onClick={() => set(current + 5000, true)}
-          suppressHydrationWarning
-          data-form-type="other"
-          data-lpignore="true"
           className={buttonClass("secondary", "px-4")}
         >
           +5k

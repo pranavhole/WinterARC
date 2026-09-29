@@ -68,9 +68,6 @@ export function SleepTracker({
               setBed(e.target.value);
               change({ bedtime: e.target.value ? timeToMinutes(e.target.value) : null });
             }}
-            suppressHydrationWarning
-            data-form-type="other"
-            data-lpignore="true"
             className={input}
           />
         </div>
@@ -87,9 +84,6 @@ export function SleepTracker({
               setWake(e.target.value);
               change({ wakeTime: e.target.value ? timeToMinutes(e.target.value) : null });
             }}
-            suppressHydrationWarning
-            data-form-type="other"
-            data-lpignore="true"
             className={input}
           />
         </div>
@@ -111,9 +105,6 @@ export function SleepTracker({
                   setQuality(next);
                   change({ sleepQuality: next }, true);
                 }}
-                suppressHydrationWarning
-                data-form-type="other"
-                data-lpignore="true"
                 className="flex h-11 w-10 items-center justify-center rounded-md disabled:opacity-50"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
