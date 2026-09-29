@@ -235,6 +235,9 @@ function HabitRow({
                 type="button"
                 onClick={() => onToggle(habit.id, day, isDone)}
                 aria-label={`${habit.title} on ${day}: ${isDone ? "completed" : "not done"}`}
+                suppressHydrationWarning
+                data-form-type="other"
+                data-lpignore="true"
                 className={cn(
                   "inline-flex h-7 w-7 items-center justify-center rounded-md border transition-all active:scale-95",
                   isDone

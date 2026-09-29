@@ -20,6 +20,9 @@ export function SyncButton({ variant = "link" }: { variant?: "link" | "button" }
             setMessage(result.ok ? null : result.error);
           })
         }
+        suppressHydrationWarning
+        data-form-type="other"
+        data-lpignore="true"
         className={variant === "button" ? buttonClass("secondary", "min-h-9 px-4 text-xs") : "inline-flex items-center gap-1 text-xs text-muted hover:text-fg"}
       >
         <RefreshIcon size={12} className={cn(pending && "animate-spin")} />

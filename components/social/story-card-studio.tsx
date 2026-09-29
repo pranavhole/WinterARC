@@ -41,8 +41,6 @@ const THEMES: Record<
   ThemeKey,
   {
     name: string;
-    subtitle: string;
-    dotColor: string;
     bgClass: string;
     accentColor: string;
     accentBg: string;
@@ -59,16 +57,14 @@ const THEMES: Record<
 > = {
   obsidian: {
     name: "Obsidian",
-    subtitle: "Graphite & Gold",
-    dotColor: "#F59E0B",
-    bgClass: "from-[#090b0e] via-[#11141c] to-[#07080b]",
+    bgClass: "from-[#0a0c10] via-[#121620] to-[#080a0e]",
     accentColor: "text-amber-400",
     accentBg: "bg-amber-400/10 text-amber-400 border-amber-400/30",
     borderClass: "border-amber-400/20",
-    glowClass: "shadow-[0_0_50px_rgba(245,158,11,0.15)]",
-    canvasBgStart: "#090b0e",
-    canvasBgMid: "#121622",
-    canvasBgEnd: "#07080b",
+    glowClass: "shadow-[0_0_40px_rgba(245,158,11,0.12)]",
+    canvasBgStart: "#0a0c10",
+    canvasBgMid: "#131722",
+    canvasBgEnd: "#080a0e",
     canvasAccent: "#F59E0B",
     canvasAccentMuted: "#785312",
     canvasText: "#FFFFFF",
@@ -76,16 +72,14 @@ const THEMES: Record<
   },
   frost: {
     name: "Frost Arc",
-    subtitle: "Midnight & Cyan",
-    dotColor: "#38BDF8",
-    bgClass: "from-[#040914] via-[#09142a] to-[#03060f]",
+    bgClass: "from-[#050B16] via-[#0C172F] to-[#040812]",
     accentColor: "text-cyan-400",
     accentBg: "bg-cyan-400/10 text-cyan-400 border-cyan-400/30",
     borderClass: "border-cyan-400/20",
-    glowClass: "shadow-[0_0_50px_rgba(56,189,248,0.18)]",
-    canvasBgStart: "#040914",
-    canvasBgMid: "#0B1836",
-    canvasBgEnd: "#03060f",
+    glowClass: "shadow-[0_0_40px_rgba(56,189,248,0.14)]",
+    canvasBgStart: "#050B16",
+    canvasBgMid: "#0D1A35",
+    canvasBgEnd: "#040812",
     canvasAccent: "#38BDF8",
     canvasAccentMuted: "#0C4A6E",
     canvasText: "#FFFFFF",
@@ -93,13 +87,11 @@ const THEMES: Record<
   },
   brutalist: {
     name: "Brutalist",
-    subtitle: "Carbon & White",
-    dotColor: "#FFFFFF",
-    bgClass: "from-[#000000] via-[#0c0c0c] to-[#000000]",
+    bgClass: "from-[#000000] via-[#0d0d0d] to-[#000000]",
     accentColor: "text-white",
     accentBg: "bg-white/10 text-white border-white/40",
     borderClass: "border-white/30",
-    glowClass: "shadow-[0_0_40px_rgba(255,255,255,0.1)]",
+    glowClass: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
     canvasBgStart: "#000000",
     canvasBgMid: "#0E0E0E",
     canvasBgEnd: "#000000",
@@ -110,16 +102,14 @@ const THEMES: Record<
   },
   crimson: {
     name: "Crimson",
-    subtitle: "Charcoal & Blood",
-    dotColor: "#F43F5E",
-    bgClass: "from-[#0c0507] via-[#1a0a10] to-[#070304]",
+    bgClass: "from-[#0d0608] via-[#1a0b10] to-[#080405]",
     accentColor: "text-rose-500",
     accentBg: "bg-rose-500/10 text-rose-400 border-rose-500/30",
     borderClass: "border-rose-500/20",
-    glowClass: "shadow-[0_0_50px_rgba(244,63,94,0.16)]",
-    canvasBgStart: "#0c0507",
-    canvasBgMid: "#1C0B12",
-    canvasBgEnd: "#070304",
+    glowClass: "shadow-[0_0_40px_rgba(244,63,94,0.14)]",
+    canvasBgStart: "#0d0608",
+    canvasBgMid: "#1C0D12",
+    canvasBgEnd: "#080405",
     canvasAccent: "#F43F5E",
     canvasAccentMuted: "#881337",
     canvasText: "#FFFFFF",
@@ -137,7 +127,6 @@ const HEADLINE_PRESETS = [
 ];
 
 export function StoryCardStudio({ data }: { data: StoryData }) {
-  const [activeTab, setActiveTab] = useState<"style" | "content" | "metrics">("style");
   const [theme, setTheme] = useState<ThemeKey>("obsidian");
   const [layout, setLayout] = useState<LayoutPreset>("streak");
 
@@ -164,9 +153,9 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
   const [showBadge, setShowBadge] = useState(true);
   const [showWatermark, setShowWatermark] = useState(true);
 
-  // Feedback states
+  // Status & feedback
   const [isGenerating, setIsGenerating] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; type: "success" | "info" } | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -184,15 +173,7 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
     );
   }, [data.badges, selectedBadgeKey]);
 
-  // Show temporary toast message
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  }, []);
-
-  // ─── High-Resolution 1080×1920 Canvas Renderer ─────────────────────────────
+  // Render 1080x1920 to canvas
   const renderCanvas = useCallback((): HTMLCanvasElement | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -215,16 +196,16 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
     ctx.fillRect(0, 0, width, height);
 
     // 2. Subtle radial glow in upper-center
-    const radial = ctx.createRadialGradient(width / 2, 580, 40, width / 2, 580, 680);
-    radial.addColorStop(0, t.canvasAccent + "20");
+    const radial = ctx.createRadialGradient(width / 2, 600, 50, width / 2, 600, 700);
+    radial.addColorStop(0, t.canvasAccent + "22");
     radial.addColorStop(1, "transparent");
     ctx.fillStyle = radial;
     ctx.fillRect(0, 0, width, height);
 
-    // 3. Subtle grid pattern
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+    // 3. Subtle grid lines
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
     ctx.lineWidth = 1;
-    const gridSize = 64;
+    const gridSize = 60;
     for (let x = gridSize; x < width; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -238,73 +219,59 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       ctx.stroke();
     }
 
-    // Outer architectural frame
-    ctx.strokeStyle = t.canvasAccent + "28";
+    // Outer framing border
+    ctx.strokeStyle = t.canvasAccent + "33";
     ctx.lineWidth = 2;
     ctx.strokeRect(60, 60, width - 120, height - 120);
 
-    // Corner crosshairs
-    const drawCross = (cx: number, cy: number) => {
-      ctx.strokeStyle = t.canvasAccent + "66";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx - 12, cy);
-      ctx.lineTo(cx + 12, cy);
-      ctx.moveTo(cx, cy - 12);
-      ctx.lineTo(cx, cy + 12);
-      ctx.stroke();
-    };
-    drawCross(60, 60);
-    drawCross(width - 60, 60);
-    drawCross(60, height - 60);
-    drawCross(width - 60, height - 60);
-
     // 4. Header: ARC // WINTER ARC
-    ctx.font = "bold 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.font = "bold 26px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillStyle = t.canvasAccent;
     ctx.letterSpacing = "6px";
     ctx.textAlign = "left";
-    ctx.fillText("ARC // WINTER ARC", 100, 150);
+    ctx.fillText("ARC // WINTER ARC", 100, 140);
 
     const userHandle = data.user.username ? `@${data.user.username}` : data.user.name ?? "WINTER ARCHITECT";
-    ctx.font = "600 22px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = "500 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillStyle = t.canvasTextMuted;
     ctx.letterSpacing = "2px";
     ctx.textAlign = "right";
-    ctx.fillText(userHandle.toUpperCase(), width - 100, 150);
+    ctx.fillText(userHandle.toUpperCase(), width - 100, 140);
 
     // Header divider line
     ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
     ctx.beginPath();
-    ctx.moveTo(100, 180);
-    ctx.lineTo(width - 100, 180);
+    ctx.moveTo(100, 170);
+    ctx.lineTo(width - 100, 170);
     ctx.stroke();
 
     // 5. Hero based on Layout Preset
     if (layout === "streak") {
-      const pillY = 270;
+      // Big Streak Hero
+      const pillY = 280;
       ctx.fillStyle = t.canvasAccent + "18";
       ctx.strokeStyle = t.canvasAccent + "55";
       ctx.lineWidth = 1.5;
-      drawRoundRect(ctx, width / 2 - 180, pillY, 360, 56, 28, true, true);
+      drawRoundRect(ctx, width / 2 - 170, pillY, 340, 54, 27, true, true);
 
       ctx.fillStyle = t.canvasAccent;
       ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.letterSpacing = "4px";
       ctx.textAlign = "center";
-      ctx.fillText("🔥  UNBROKEN STREAK", width / 2, pillY + 36);
+      ctx.fillText("UNBROKEN STREAK", width / 2, pillY + 34);
 
       // Streak number
-      ctx.font = "900 210px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "900 200px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasText;
-      ctx.letterSpacing = "-6px";
+      ctx.letterSpacing = "-4px";
       ctx.fillText(String(streak), width / 2, 530);
 
-      ctx.font = "bold 30px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "bold 32px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasAccent;
       ctx.letterSpacing = "8px";
-      ctx.fillText("DAYS OF DISCIPLINE", width / 2, 585);
+      ctx.fillText("DAYS CONSISTENT", width / 2, 590);
     } else if (layout === "achievement") {
+      // Achievement Badge Hero
       const centerY = 410;
       // Outer medal glow ring
       ctx.beginPath();
@@ -324,33 +291,36 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Trophy glyph
+      // Trophy / Star glyph inside medal
       ctx.font = "72px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("🏆", width / 2, centerY + 26);
 
+      // Badge title
       ctx.font = "bold 44px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasText;
       ctx.letterSpacing = "3px";
-      ctx.fillText(currentBadge.name.toUpperCase(), width / 2, centerY + 185);
+      ctx.fillText(currentBadge.name.toUpperCase(), width / 2, centerY + 190);
 
-      ctx.font = "600 24px -apple-system, BlinkMacSystemFont, sans-serif";
+      // Badge unlock / description
+      ctx.font = "500 26px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasAccent;
-      ctx.letterSpacing = "2px";
-      ctx.fillText(`+${currentBadge.xpReward} XP UNLOCKED`, width / 2, centerY + 230);
+      ctx.letterSpacing = "1px";
+      ctx.fillText(`+${currentBadge.xpReward} XP UNLOCKED`, width / 2, centerY + 235);
     } else if (layout === "metrics") {
-      const gridY = 260;
+      // 4 Metrics Grid
+      const gridY = 270;
       const cardW = 410;
-      const cardH = 160;
+      const cardH = 170;
       const gap = 30;
       const leftCol = 105;
       const rightCol = leftCol + cardW + gap;
 
       const cards = [
-        { label: "CURRENT DAY", val: `DAY ${dayNumber}`, sub: `OF ${arcLength} TOTAL` },
-        { label: "ACTIVE STREAK", val: `${streak} DAYS`, sub: `BEST: ${data.bestStreak}d` },
-        { label: "TOTAL XP", val: `${xp.toLocaleString()}`, sub: "EXPERIENCE" },
-        { label: "DISCIPLINE", val: `${consistency}%`, sub: "SUCCESS RATE" },
+        { label: "CURRENT DAY", val: `DAY ${dayNumber}`, sub: `OF ${arcLength} DAYS` },
+        { label: "ACTIVE STREAK", val: `${streak} DAYS`, sub: `BEST: ${data.bestStreak} DAYS` },
+        { label: "EXPERIENCE", val: `${xp.toLocaleString()} XP`, sub: "ACCUMULATED" },
+        { label: "DISCIPLINE RATE", val: `${consistency}%`, sub: `${data.completedDays} DAYS DONE` },
       ];
 
       cards.forEach((c, idx) => {
@@ -366,83 +336,75 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
         ctx.fillStyle = t.canvasAccent;
         ctx.letterSpacing = "3px";
         ctx.textAlign = "left";
-        ctx.fillText(c.label, x + 28, y + 42);
+        ctx.fillText(c.label, x + 30, y + 45);
 
-        ctx.font = "900 44px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = "900 46px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.fillStyle = t.canvasText;
         ctx.letterSpacing = "-1px";
-        ctx.fillText(c.val, x + 28, y + 100);
+        ctx.fillText(c.val, x + 30, y + 105);
 
-        ctx.font = "500 18px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = "500 20px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.fillStyle = t.canvasTextMuted;
         ctx.letterSpacing = "1px";
-        ctx.fillText(c.sub, x + 28, y + 132);
+        ctx.fillText(c.sub, x + 30, y + 140);
       });
     } else {
-      // Manifesto Hero (NO duplicate text below!)
+      // Manifesto Hero
       const quoteY = 320;
-      ctx.font = "900 130px Georgia, serif";
-      ctx.fillStyle = t.canvasAccent + "38";
+      ctx.font = "900 120px serif";
+      ctx.fillStyle = t.canvasAccent + "44";
       ctx.textAlign = "left";
       ctx.fillText("“", 100, quoteY + 40);
 
-      ctx.font = "italic 800 46px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "italic 800 48px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasText;
-      ctx.letterSpacing = "0.5px";
-      wrapText(ctx, quote.toUpperCase(), 110, quoteY + 90, 860, 64, 4);
+      ctx.letterSpacing = "1px";
+      wrapText(ctx, `"${quote.toUpperCase()}"`, 110, quoteY + 90, 860, 68, 4);
 
-      ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "bold 24px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasAccent;
       ctx.letterSpacing = "5px";
-      ctx.fillText("— WINTER ARC PROTOCOL", 110, quoteY + 310);
+      ctx.fillText("— THE WINTER ARC MANIFESTO", 110, quoteY + 310);
     }
 
     // 6. Center: Editable Headline
-    const headlineY = layout === "metrics" ? 680 : layout === "manifesto" ? 720 : 680;
+    const headlineY = layout === "metrics" ? 700 : layout === "manifesto" ? 720 : 690;
     ctx.textAlign = "center";
-    ctx.font = "900 64px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = "900 68px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = t.canvasText;
     ctx.letterSpacing = "2px";
-    wrapText(ctx, headline.toUpperCase(), width / 2, headlineY, 900, 74, 2);
+    wrapText(ctx, headline.toUpperCase(), width / 2, headlineY, 900, 78, 2);
 
-    // 7. Statement / Reflection Box (Only rendered if NOT manifesto to avoid duplicate text!)
-    const boxY = headlineY + 115;
-    const boxH = 220;
-    if (layout !== "manifesto") {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      ctx.strokeStyle = t.canvasAccent + "33";
-      ctx.lineWidth = 1.5;
-      drawRoundRect(ctx, 100, boxY, width - 200, boxH, 22, true, true);
+    // 7. Note / Daily Statement Box
+    const boxY = headlineY + 130;
+    const boxH = 260;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.strokeStyle = t.canvasAccent + "33";
+    ctx.lineWidth = 1.5;
+    drawRoundRect(ctx, 100, boxY, width - 200, boxH, 24, true, true);
 
-      // Accent border stripe on left
-      ctx.fillStyle = t.canvasAccent;
-      drawRoundRect(ctx, 100, boxY, 8, boxH, 4, true, false);
+    // Left vertical accent stripe on note box
+    ctx.fillStyle = t.canvasAccent;
+    drawRoundRect(ctx, 100, boxY, 8, boxH, 4, true, false);
 
-      ctx.textAlign = "left";
-      ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillStyle = t.canvasAccent;
-      ctx.letterSpacing = "3px";
-      ctx.fillText("DAILY LOG // MANIFESTO", 136, boxY + 44);
+    ctx.textAlign = "left";
+    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = t.canvasAccent;
+    ctx.letterSpacing = "3px";
+    ctx.fillText("DAILY LOG // DISCIPLINE STATEMENT", 140, boxY + 50);
 
-      ctx.font = "400 28px -apple-system, BlinkMacSystemFont, Georgia, sans-serif";
-      ctx.fillStyle = "#E2E8F0";
-      wrapText(ctx, `"${quote}"`, 136, boxY + 98, 800, 40, 2);
+    ctx.font = "400 32px -apple-system, BlinkMacSystemFont, Georgia, sans-serif";
+    ctx.fillStyle = "#E2E8F0";
+    wrapText(ctx, `"${quote}"`, 140, boxY + 110, 800, 44, 2);
 
-      if (note) {
-        ctx.font = "400 22px -apple-system, BlinkMacSystemFont, sans-serif";
-        ctx.fillStyle = t.canvasTextMuted;
-        wrapText(ctx, note, 136, boxY + 172, 800, 32, 1);
-      }
-    } else if (note) {
-      // For Manifesto layout, render clean note line without the box
-      ctx.textAlign = "center";
-      ctx.font = "400 26px -apple-system, BlinkMacSystemFont, sans-serif";
+    if (note) {
+      ctx.font = "400 24px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasTextMuted;
-      wrapText(ctx, note, width / 2, boxY + 40, 860, 36, 2);
+      wrapText(ctx, note, 140, boxY + 205, 800, 36, 2);
     }
 
     // 8. Stats Strip (Bottom quadrant)
-    const stripY = boxY + boxH + 50;
+    const stripY = boxY + boxH + 60;
     const statItems: Array<{ label: string; value: string; show: boolean }> = [
       { label: "DAY", value: `${dayNumber}/${arcLength}`, show: showDay },
       { label: "STREAK", value: `${streak}d 🔥`, show: showStreak },
@@ -455,34 +417,37 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       statItems.forEach((st, idx) => {
         const cx = 100 + colWidth * idx + colWidth / 2;
         ctx.textAlign = "center";
-        ctx.font = "600 18px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = "500 20px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.fillStyle = t.canvasTextMuted;
         ctx.letterSpacing = "2px";
         ctx.fillText(st.label, cx, stripY + 20);
 
-        ctx.font = "bold 40px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = "bold 44px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.fillStyle = t.canvasText;
         ctx.letterSpacing = "0px";
-        ctx.fillText(st.value, cx, stripY + 68);
+        ctx.fillText(st.value, cx, stripY + 70);
 
+        // Divider between stats
         if (idx < statItems.length - 1) {
           ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
           ctx.beginPath();
           ctx.moveTo(100 + colWidth * (idx + 1), stripY + 10);
-          ctx.lineTo(100 + colWidth * (idx + 1), stripY + 75);
+          ctx.lineTo(100 + colWidth * (idx + 1), stripY + 80);
           ctx.stroke();
         }
       });
     }
 
     // 9. Arc Progress Bar
-    const barY = stripY + 125;
+    const barY = stripY + 130;
     const barW = width - 200;
     const progress = Math.min(1, Math.max(0, dayNumber / arcLength));
 
+    // Track
     ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
     drawRoundRect(ctx, 100, barY, barW, 14, 7, true, false);
 
+    // Filled progress
     if (progress > 0) {
       const barGrad = ctx.createLinearGradient(100, 0, 100 + barW * progress, 0);
       barGrad.addColorStop(0, t.canvasAccentMuted);
@@ -491,28 +456,29 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       drawRoundRect(ctx, 100, barY, Math.max(20, barW * progress), 14, 7, true, false);
     }
 
+    // Progress percentage & days label
     ctx.textAlign = "left";
-    ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = t.canvasTextMuted;
     ctx.letterSpacing = "2px";
-    ctx.fillText(`PROGRESS: ${Math.round(progress * 100)}% COMPLETE`, 100, barY + 40);
+    ctx.fillText(`PROGRESS: ${Math.round(progress * 100)}% COMPLETE`, 100, barY + 44);
 
     ctx.textAlign = "right";
-    ctx.fillText(`${arcLength - dayNumber} DAYS REMAINING`, width - 100, barY + 40);
+    ctx.fillText(`${arcLength - dayNumber} DAYS REMAINING`, width - 100, barY + 44);
 
-    // 10. Footer / Watermark (Safe Area)
+    // 10. Footer / Watermark
     if (showWatermark) {
-      const footerY = height - 125;
+      const footerY = height - 120;
       ctx.textAlign = "center";
-      ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasAccent;
       ctx.letterSpacing = "6px";
       ctx.fillText("BUILT ON ARC PROTOCOL", width / 2, footerY);
 
-      ctx.font = "500 16px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "500 18px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = t.canvasTextMuted;
       ctx.letterSpacing = "3px";
-      ctx.fillText("DISCIPLINE • EXECUTION • ZERO COMPROMISE", width / 2, footerY + 30);
+      ctx.fillText("DISCIPLINE • EXECUTION • ZERO COMPROMISE", width / 2, footerY + 34);
     }
 
     return canvas;
@@ -545,9 +511,10 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
     });
   }, [renderCanvas]);
 
-  // Share to Instagram Story handler
+  // Handle Share to Instagram Story
   const handleShareStory = async () => {
     setIsGenerating(true);
+    setFeedback(null);
     try {
       const blob = await getBlob();
       if (!blob) throw new Error("Could not render image");
@@ -555,23 +522,26 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       const fileName = `winter-arc-day-${dayNumber}.png`;
       const file = new File([blob], fileName, { type: "image/png" });
 
+      // 1. Mobile Web Share API: triggers native OS share sheet with Instagram Stories
       if (typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: "Winter Arc Story",
           text: `${headline} • Day ${dayNumber} of ${arcLength} #winterarc`,
         });
-        showToast("Shared to Instagram Story!");
+        setFeedback({ message: "Shared to Instagram Story!", type: "success" });
         return;
       }
 
+      // 2. Fallback: Download file directly and copy to clipboard, then show Instagram instructions
       downloadFile(blob, fileName);
       await copyBlobToClipboard(blob);
       setShowModal(true);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
-        return;
+        return; // User cancelled share sheet
       }
+      // Provide download fallback
       const blob = await getBlob();
       if (blob) {
         downloadFile(blob, `winter-arc-day-${dayNumber}.png`);
@@ -582,19 +552,21 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
     }
   };
 
+  // Download directly
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
       const blob = await getBlob();
       if (blob) {
         downloadFile(blob, `winter-arc-day-${dayNumber}.png`);
-        showToast("Downloaded 1080×1920 Story PNG!");
+        setFeedback({ message: "Downloaded 1080×1920 Story PNG!", type: "success" });
       }
     } finally {
       setIsGenerating(false);
     }
   };
 
+  // Copy image to clipboard
   const handleCopy = async () => {
     setIsGenerating(true);
     try {
@@ -602,10 +574,10 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
       if (blob) {
         const ok = await copyBlobToClipboard(blob);
         if (ok) {
-          showToast("Image copied to clipboard!");
+          setFeedback({ message: "Story image copied to clipboard!", type: "success" });
         } else {
           downloadFile(blob, `winter-arc-day-${dayNumber}.png`);
-          showToast("Downloaded image (clipboard not supported)");
+          setFeedback({ message: "Downloaded image (clipboard not supported by browser)", type: "info" });
         }
       }
     } finally {
@@ -613,6 +585,7 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
     }
   };
 
+  // Render on changes
   useEffect(() => {
     renderCanvas();
   }, [renderCanvas]);
@@ -620,325 +593,283 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
   const activeTheme = THEMES[theme];
 
   return (
-    <div className="space-y-6">
-      {/* Hidden offscreen canvas for 1080×1920 generation */}
+    <div className="space-y-8">
+      {/* Hidden high-res canvas */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-zinc-950/90 px-4 py-3 text-xs font-medium text-emerald-400 shadow-2xl backdrop-blur-md animate-fade">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>{toastMessage}</span>
+      {/* Top Banner / Feedback */}
+      {feedback && (
+        <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-400">
+          <span>{feedback.message}</span>
+          <button onClick={() => setFeedback(null)} className="ml-3 font-semibold hover:underline">
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* Main Studio View: Left Controls & Right Mockup */}
+      {/* Main Studio Grid: Controls (Left) and Phone Mockup Preview (Right) */}
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
-        {/* ─── Left Column: Sleek Studio Editor (7 cols) ─── */}
-        <div className="space-y-5 lg:col-span-7">
-          {/* Segmented Category Navigation */}
-          <div className="flex rounded-xl border border-line bg-card/40 p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveTab("style")}
-              className={cn(
-                "flex-1 rounded-lg py-2 font-medium transition-all",
-                activeTab === "style" ? "bg-fg text-bg shadow-sm" : "text-muted hover:text-fg",
-              )}
-            >
-              1. Style & Theme
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("content")}
-              className={cn(
-                "flex-1 rounded-lg py-2 font-medium transition-all",
-                activeTab === "content" ? "bg-fg text-bg shadow-sm" : "text-muted hover:text-fg",
-              )}
-            >
-              2. Words & Quote
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("metrics")}
-              className={cn(
-                "flex-1 rounded-lg py-2 font-medium transition-all",
-                activeTab === "metrics" ? "bg-fg text-bg shadow-sm" : "text-muted hover:text-fg",
-              )}
-            >
-              3. Stats & Toggles
-            </button>
+        {/* Left Column: Customization Controls (7 cols) */}
+        <div className="space-y-6 lg:col-span-7">
+          {/* 1. Layout Preset Selector */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Story Template Layout</label>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(
+                [
+                  { id: "streak", name: "🔥 Streak", desc: "Huge unbroken days" },
+                  { id: "achievement", name: "🏆 Badge", desc: "Featured medal" },
+                  { id: "metrics", name: "📊 4-Grid", desc: "Full metrics" },
+                  { id: "manifesto", name: "⚡ Manifesto", desc: "Bold statement" },
+                ] as const
+              ).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setLayout(p.id)}
+                  className={cn(
+                    "flex flex-col items-center rounded-lg border p-3 text-center transition-all",
+                    layout === p.id
+                      ? "border-fg bg-fg text-bg font-semibold shadow-sm"
+                      : "border-line bg-card/40 text-muted hover:border-fg/40 hover:text-fg",
+                  )}
+                >
+                  <span className="text-sm font-medium">{p.name}</span>
+                  <span className="mt-0.5 text-[10px] opacity-70">{p.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* TAB 1: Style & Theme */}
-          {activeTab === "style" && (
-            <div className="space-y-5 animate-fade">
-              {/* Layout Preset Selector */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted">Story Template Layout</span>
-                  <span className="text-[11px] text-muted">9:16 Vertical Composition</span>
-                </div>
-                <div className="mt-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(
-                    [
-                      { id: "streak", icon: "🔥", name: "Streak", desc: "Unbroken days" },
-                      { id: "achievement", icon: "🏆", name: "Badge", desc: "Medal unlock" },
-                      { id: "metrics", icon: "📊", name: "4-Grid", desc: "Full metrics" },
-                      { id: "manifesto", icon: "⚡", name: "Manifesto", desc: "Mantra quote" },
-                    ] as const
-                  ).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setLayout(p.id)}
-                      className={cn(
-                        "group relative flex flex-col items-center justify-center rounded-xl border p-3.5 text-center transition-all",
-                        layout === p.id
-                          ? "border-fg bg-fg text-bg shadow-md scale-[1.02]"
-                          : "border-line bg-card/60 text-muted hover:border-fg/40 hover:text-fg hover:bg-card",
-                      )}
-                    >
-                      <span className="text-xl">{p.icon}</span>
-                      <span className="mt-1 text-xs font-bold">{p.name}</span>
-                      <span className="text-[10px] opacity-75">{p.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Theme Selector */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted">Color & Mood Theme</span>
-                <div className="mt-3.5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(Object.keys(THEMES) as ThemeKey[]).map((tKey) => {
-                    const t = THEMES[tKey];
-                    const isSelected = theme === tKey;
-                    return (
-                      <button
-                        key={tKey}
-                        type="button"
-                        onClick={() => setTheme(tKey)}
-                        className={cn(
-                          "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
-                          isSelected
-                            ? "border-fg bg-card ring-2 ring-fg/20 shadow-md"
-                            : "border-line bg-card/40 hover:border-fg/30 hover:bg-card",
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full shadow-sm"
-                            style={{ backgroundColor: t.dotColor }}
-                          />
-                          <span className="text-xs font-bold text-fg">{t.name}</span>
-                        </div>
-                        <span className="mt-1 text-[10px] text-muted">{t.subtitle}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          {/* 2. Theme Selector */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Visual Theme</label>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(Object.keys(THEMES) as ThemeKey[]).map((tKey) => {
+                const t = THEMES[tKey];
+                return (
+                  <button
+                    key={tKey}
+                    type="button"
+                    onClick={() => setTheme(tKey)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition-all",
+                      theme === tKey
+                        ? "border-fg bg-fg text-bg font-semibold shadow-sm"
+                        : "border-line bg-card/40 text-muted hover:border-fg/40 hover:text-fg",
+                    )}
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: t.canvasAccent }}
+                    />
+                    <span>{t.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          {/* TAB 2: Words & Quote */}
-          {activeTab === "content" && (
-            <div className="space-y-5 animate-fade">
-              {/* Headline Title */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm space-y-3">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Headline Text
-                </label>
-                <input
-                  type="text"
-                  value={headline}
-                  onChange={(e) => setHeadline(e.target.value)}
-                  maxLength={40}
-                  placeholder="e.g. DAY 2 // LOCKED IN"
-                  className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm font-medium text-fg outline-none focus:border-fg transition-colors"
-                />
-                <div>
-                  <span className="text-[11px] text-muted">Quick Presets:</span>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {HEADLINE_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setHeadline(`DAY ${dayNumber} // ${preset}`)}
-                        className="rounded-lg border border-line/60 bg-card/40 px-2.5 py-1 text-[11px] text-muted hover:border-fg/40 hover:text-fg transition-colors"
-                      >
-                        +{preset}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Personal Statement / Mantra */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-                    Personal Statement / Quote
-                  </label>
-                  <span className="text-[10px] text-muted">{quote.length}/140</span>
-                </div>
-                <textarea
-                  value={quote}
-                  onChange={(e) => setQuote(e.target.value)}
-                  rows={2}
-                  maxLength={140}
-                  placeholder="Silence. Focus. Execution."
-                  className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-fg transition-colors"
-                />
-              </div>
-
-              {/* Daily Reflection / Note */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-                    Today&apos;s Daily Reflection / Note
-                  </label>
-                  <span className="text-[10px] text-muted">{note.length}/100</span>
-                </div>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  maxLength={100}
-                  placeholder="Showing up every single day. Consistency is the only hack."
-                  className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-fg transition-colors"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Stats & Toggles */}
-          {activeTab === "metrics" && (
-            <div className="space-y-5 animate-fade">
-              {/* Display Metrics Adjuster */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted">Metric Values</span>
-                <div className="mt-3.5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                  <div className="rounded-xl border border-line/60 bg-bg p-2.5">
-                    <span className="text-[10px] uppercase font-bold text-muted">Day</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={arcLength}
-                      value={dayNumber}
-                      onChange={(e) => setDayNumber(Number(e.target.value))}
-                      className="mt-1 w-full bg-transparent text-sm font-bold text-fg outline-none"
-                    />
-                  </div>
-                  <div className="rounded-xl border border-line/60 bg-bg p-2.5">
-                    <span className="text-[10px] uppercase font-bold text-muted">Arc Days</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={arcLength}
-                      onChange={(e) => setArcLength(Number(e.target.value))}
-                      className="mt-1 w-full bg-transparent text-sm font-bold text-fg outline-none"
-                    />
-                  </div>
-                  <div className="rounded-xl border border-line/60 bg-bg p-2.5">
-                    <span className="text-[10px] uppercase font-bold text-muted">Streak 🔥</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={streak}
-                      onChange={(e) => setStreak(Number(e.target.value))}
-                      className="mt-1 w-full bg-transparent text-sm font-bold text-fg outline-none"
-                    />
-                  </div>
-                  <div className="rounded-xl border border-line/60 bg-bg p-2.5">
-                    <span className="text-[10px] uppercase font-bold text-muted">Total XP</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={xp}
-                      onChange={(e) => setXp(Number(e.target.value))}
-                      className="mt-1 w-full bg-transparent text-sm font-bold text-fg outline-none"
-                    />
-                  </div>
-                  <div className="rounded-xl border border-line/60 bg-bg p-2.5">
-                    <span className="text-[10px] uppercase font-bold text-muted">Discipline %</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={consistency}
-                      onChange={(e) => setConsistency(Number(e.target.value))}
-                      className="mt-1 w-full bg-transparent text-sm font-bold text-fg outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Spotlight Badge */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm space-y-3">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Featured Achievement Badge
-                </label>
-                <select
-                  value={selectedBadgeKey ?? ""}
-                  onChange={(e) => setSelectedBadgeKey(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-xs text-fg outline-none focus:border-fg transition-colors"
+          {/* 3. Headline Editor & Quick Chips */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Headline Title</label>
+            <input
+              type="text"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              maxLength={40}
+              placeholder="e.g. DAY 24 // LOCKED IN"
+              className="mt-2 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-fg"
+            />
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {HEADLINE_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setHeadline(`DAY ${dayNumber} // ${preset}`)}
+                  className="rounded-md border border-line/60 bg-card/40 px-2.5 py-1 text-[11px] text-muted hover:border-fg/40 hover:text-fg"
                 >
-                  {data.badges.map((b) => (
-                    <option key={b.key} value={b.key}>
-                      🏆 {b.name} (+{b.xpReward} XP) — {b.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  +{preset}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* Visibility Checkboxes */}
-              <div className="rounded-2xl border border-line bg-card/50 p-5 shadow-sm">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted">Card Elements</span>
-                <div className="mt-3.5 grid grid-cols-2 gap-2.5 text-xs sm:grid-cols-3">
-                  {[
-                    { label: "Active Streak", val: showStreak, set: setShowStreak },
-                    { label: "Day Progress", val: showDay, set: setShowDay },
-                    { label: "XP Counter", val: showXp, set: setShowXp },
-                    { label: "Discipline Rate", val: showConsistency, set: setShowConsistency },
-                    { label: "Featured Badge", val: showBadge, set: setShowBadge },
-                    { label: "Watermark Handle", val: showWatermark, set: setShowWatermark },
-                  ].map((item, idx) => (
-                    <label
-                      key={idx}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2.5 rounded-xl border p-2.5 transition-all select-none",
-                        item.val
-                          ? "border-fg/40 bg-fg/5 text-fg font-medium"
-                          : "border-line bg-card/30 text-muted hover:border-line/80",
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={item.val}
-                        onChange={(e) => item.set(e.target.checked)}
-                        className="accent-fg rounded"
-                      />
-                      <span>{item.label}</span>
-                    </label>
-                  ))}
-                </div>
+          {/* 4. Statement & Note */}
+          <div className="rounded-xl border border-line bg-card/60 p-4 space-y-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted">Personal Statement / Quote</label>
+              <textarea
+                value={quote}
+                onChange={(e) => setQuote(e.target.value)}
+                rows={2}
+                maxLength={140}
+                placeholder="Silence. Focus. Execution."
+                className="mt-2 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-fg"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted">Today&apos;s Reflection / Note</label>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={100}
+                placeholder="6 habits locked in before 8 AM."
+                className="mt-2 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-fg"
+              />
+            </div>
+          </div>
+
+          {/* 5. Metrics Adjuster */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Display Metrics</label>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div>
+                <span className="text-[11px] text-muted">Day Number</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={arcLength}
+                  value={dayNumber}
+                  onChange={(e) => setDayNumber(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-fg"
+                />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted">Arc Days</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={arcLength}
+                  onChange={(e) => setArcLength(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-fg"
+                />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted">Streak Days</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={streak}
+                  onChange={(e) => setStreak(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-fg"
+                />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted">Total XP</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={xp}
+                  onChange={(e) => setXp(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-fg"
+                />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted">Discipline %</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={consistency}
+                  onChange={(e) => setConsistency(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-fg"
+                />
               </div>
             </div>
-          )}
+
+          </div>
+
+          {/* 6. Feature Badge (when Achievement or general) */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Spotlight Badge</label>
+            <select
+              value={selectedBadgeKey ?? ""}
+              onChange={(e) => setSelectedBadgeKey(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-fg"
+            >
+              {data.badges.map((b) => (
+                <option key={b.key} value={b.key}>
+                  🏆 {b.name} (+{b.xpReward} XP) — {b.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 7. Display Toggles */}
+          <div className="rounded-xl border border-line bg-card/60 p-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted">Visible Elements</label>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted sm:grid-cols-3">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showStreak}
+                  onChange={(e) => setShowStreak(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>Active Streak</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showDay}
+                  onChange={(e) => setShowDay(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>Day Progress</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showXp}
+                  onChange={(e) => setShowXp(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>XP Counter</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showConsistency}
+                  onChange={(e) => setShowConsistency(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>Discipline Rate</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showBadge}
+                  onChange={(e) => setShowBadge(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>Featured Badge</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showWatermark}
+                  onChange={(e) => setShowWatermark(e.target.checked)}
+                  className="accent-fg"
+                />
+                <span>Watermark Handle</span>
+              </label>
+            </div>
+          </div>
+
         </div>
 
-        {/* ─── Right Column: Smartphone Mockup & Action Bar (5 cols) ─── */}
-        <div className="space-y-5 lg:col-span-5 lg:sticky lg:top-8 flex flex-col items-center">
+        {/* Right Column: Live 9:16 Instagram Story Preview & Action Bar (5 cols) */}
+        <div className="space-y-4 lg:col-span-5 lg:sticky lg:top-8">
           {/* Action Bar */}
-          <div className="w-full max-w-[320px] space-y-2 rounded-2xl border border-line bg-card/90 p-3.5 shadow-xl backdrop-blur-md">
+          <div className="flex flex-col gap-2 rounded-xl border border-line bg-card/80 p-3 shadow-md backdrop-blur">
             <button
               type="button"
               onClick={handleShareStory}
               disabled={isGenerating}
-              className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-transform active:scale-[0.98] hover:opacity-95 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
             >
               <InstagramIcon size={18} />
               <span>{isGenerating ? "Preparing Story..." : "Share on Instagram Story"}</span>
@@ -949,7 +880,7 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
                 type="button"
                 onClick={handleDownload}
                 disabled={isGenerating}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-medium text-fg hover:border-fg transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-card/50 px-3 py-2 text-xs font-medium text-fg hover:border-fg transition-colors disabled:opacity-50"
               >
                 <DownloadIcon size={14} />
                 <span>Download PNG</span>
@@ -958,7 +889,7 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
                 type="button"
                 onClick={handleCopy}
                 disabled={isGenerating}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-medium text-fg hover:border-fg transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-card/50 px-3 py-2 text-xs font-medium text-fg hover:border-fg transition-colors disabled:opacity-50"
               >
                 <CopyIcon size={14} />
                 <span>Copy Image</span>
@@ -967,45 +898,42 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
           </div>
 
           {/* 9:16 Phone Frame Mockup Preview */}
-          <div className="relative w-full max-w-[310px]">
-            {/* Phone Outer Chassis with Titanium Bezel */}
+          <div className="flex justify-center">
             <div
               className={cn(
-                "relative aspect-[9/16] w-full overflow-hidden rounded-[42px] border-[7px] border-[#1f2229] bg-gradient-to-b p-5 shadow-2xl transition-all",
+                "relative aspect-[9/16] w-full max-w-[340px] overflow-hidden rounded-[32px] border-[5px] border-[#22242a] bg-gradient-to-b p-5 shadow-2xl transition-all",
                 activeTheme.bgClass,
                 activeTheme.glowClass,
               )}
             >
-              {/* Dynamic Island / Pill Notch */}
-              <div className="mx-auto mb-3.5 h-4 w-24 rounded-full bg-black/80 border border-white/5 flex items-center justify-end px-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/80 animate-pulse" />
-              </div>
+              {/* Phone Speaker / Notch */}
+              <div className="mx-auto mb-4 h-3.5 w-24 rounded-full bg-black/60" />
 
-              {/* Story Canvas Content Container */}
-              <div className="flex h-[calc(100%-28px)] flex-col justify-between text-white select-none">
+              {/* Story Content Inside Mockup */}
+              <div className="flex h-[calc(100%-28px)] flex-col justify-between text-white">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-[9px] tracking-widest uppercase">
-                  <span className={cn("font-bold", activeTheme.accentColor)}>ARC // WINTER ARC</span>
-                  <span className="text-white/60 font-medium">
-                    {data.user.username ? `@${data.user.username}` : "WINTER ARCHITECT"}
+                <div className="flex items-center justify-between border-b border-white/10 pb-2 text-[10px] tracking-widest uppercase">
+                  <span className={cn("font-bold", activeTheme.accentColor)}>ARC // PROTOCOL</span>
+                  <span className="text-white/60">
+                    {data.user.username ? `@${data.user.username}` : "WINTER ARC"}
                   </span>
                 </div>
 
-                {/* Hero Middle Section */}
-                <div className="my-auto space-y-3.5 py-1 text-center">
+                {/* Hero Section */}
+                <div className="my-auto space-y-4 py-2 text-center">
                   {layout === "streak" && (
                     <div className="space-y-1">
                       <div
                         className={cn(
-                          "mx-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[9px] font-bold tracking-widest",
+                          "mx-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold tracking-widest",
                           activeTheme.accentBg,
                         )}
                       >
-                        <FlameIcon size={11} />
+                        <FlameIcon size={12} />
                         <span>UNBROKEN STREAK</span>
                       </div>
-                      <div className="text-6xl font-black tracking-tighter leading-none">{streak}</div>
-                      <div className={cn("text-[10px] font-bold tracking-widest uppercase", activeTheme.accentColor)}>
+                      <div className="text-6xl font-black tracking-tight">{streak}</div>
+                      <div className={cn("text-[11px] font-bold tracking-wider uppercase", activeTheme.accentColor)}>
                         Days Consistent
                       </div>
                     </div>
@@ -1015,14 +943,14 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
                     <div className="space-y-2">
                       <div
                         className={cn(
-                          "mx-auto flex h-14 w-14 items-center justify-center rounded-full border-2",
+                          "mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2",
                           activeTheme.accentBg,
                         )}
                       >
-                        <TrophyIcon size={24} />
+                        <TrophyIcon size={28} />
                       </div>
-                      <div className="text-xs font-bold tracking-wider uppercase">{currentBadge.name}</div>
-                      <div className={cn("text-[10px] font-semibold tracking-wider", activeTheme.accentColor)}>
+                      <div className="text-sm font-bold tracking-wide uppercase">{currentBadge.name}</div>
+                      <div className={cn("text-[11px] font-semibold", activeTheme.accentColor)}>
                         +{currentBadge.xpReward} XP UNLOCKED
                       </div>
                     </div>
@@ -1030,73 +958,71 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
 
                   {layout === "metrics" && (
                     <div className="grid grid-cols-2 gap-2 text-left">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                        <div className="text-[8px] text-white/50 tracking-wider font-bold">DAY</div>
-                        <div className="text-xs font-bold">{dayNumber}/{arcLength}</div>
+                      <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+                        <div className="text-[9px] text-white/50 tracking-wider">DAY</div>
+                        <div className="text-sm font-bold">{dayNumber}/{arcLength}</div>
                       </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                        <div className="text-[8px] text-white/50 tracking-wider font-bold">STREAK</div>
-                        <div className="text-xs font-bold">{streak} Days</div>
+                      <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+                        <div className="text-[9px] text-white/50 tracking-wider">STREAK</div>
+                        <div className="text-sm font-bold">{streak} Days</div>
                       </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                        <div className="text-[8px] text-white/50 tracking-wider font-bold">XP</div>
-                        <div className="text-xs font-bold">{xp.toLocaleString()}</div>
+                      <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+                        <div className="text-[9px] text-white/50 tracking-wider">XP</div>
+                        <div className="text-sm font-bold">{xp.toLocaleString()}</div>
                       </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                        <div className="text-[8px] text-white/50 tracking-wider font-bold">RATE</div>
-                        <div className="text-xs font-bold">{consistency}%</div>
+                      <div className="rounded-lg border border-white/10 bg-white/5 p-2">
+                        <div className="text-[9px] text-white/50 tracking-wider">RATE</div>
+                        <div className="text-sm font-bold">{consistency}%</div>
                       </div>
                     </div>
                   )}
 
                   {layout === "manifesto" && (
-                    <div className="space-y-1.5 py-1">
-                      <div className={cn("text-3xl font-serif opacity-30 leading-none", activeTheme.accentColor)}>“</div>
-                      <div className="text-xs font-bold uppercase tracking-wide leading-snug px-2 line-clamp-3">
+                    <div className="space-y-1.5 py-2">
+                      <div className={cn("text-3xl font-serif opacity-30", activeTheme.accentColor)}>“</div>
+                      <div className="text-sm font-bold uppercase tracking-wide leading-snug">
                         {quote}
                       </div>
-                      <div className={cn("text-[8px] font-bold tracking-widest", activeTheme.accentColor)}>
+                      <div className={cn("text-[9px] font-bold tracking-widest", activeTheme.accentColor)}>
                         — WINTER ARC MANIFESTO
                       </div>
                     </div>
                   )}
 
-                  {/* Headline Title */}
-                  <div className="px-1">
-                    <h2 className="text-sm font-black tracking-wide uppercase leading-tight line-clamp-2">
+                  {/* Headline */}
+                  <div className="px-2">
+                    <h2 className="text-base font-black tracking-wide uppercase leading-tight line-clamp-2">
                       {headline}
                     </h2>
                   </div>
 
-                  {/* Statement Card (Shown when NOT manifesto to prevent text repetition!) */}
-                  {layout !== "manifesto" && (
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-2 text-left text-[10px] leading-relaxed">
-                      <div className={cn("text-[8px] font-bold tracking-wider uppercase mb-0.5", activeTheme.accentColor)}>
-                        Discipline Statement
-                      </div>
-                      <div className="italic text-white/90 line-clamp-2">&ldquo;{quote}&rdquo;</div>
-                      {note && <div className="mt-1 text-[9px] text-white/60 line-clamp-1">{note}</div>}
+                  {/* Statement Card */}
+                  <div className="rounded-xl border border-white/10 bg-black/40 p-2.5 text-left text-[11px] leading-relaxed">
+                    <div className={cn("text-[9px] font-bold tracking-wider uppercase mb-1", activeTheme.accentColor)}>
+                      Discipline Log
                     </div>
-                  )}
+                    <div className="italic text-white/90 line-clamp-2">&ldquo;{quote}&rdquo;</div>
+                    {note && <div className="mt-1 text-[10px] text-white/60 line-clamp-1">{note}</div>}
+                  </div>
                 </div>
 
                 {/* Footer Progress & Watermark */}
-                <div className="space-y-2 border-t border-white/10 pt-2">
-                  <div className="flex justify-between text-[9px] text-white/60 font-medium">
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <div className="flex justify-between text-[10px] text-white/60">
                     <span>Day {dayNumber} of {arcLength}</span>
                     <span>{Math.round((dayNumber / arcLength) * 100)}%</span>
                   </div>
-                  <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all"
+                      className="h-full rounded-full bg-current transition-all"
                       style={{
                         width: `${Math.min(100, Math.max(5, (dayNumber / arcLength) * 100))}%`,
-                        backgroundColor: activeTheme.canvasAccent,
+                        color: activeTheme.canvasAccent,
                       }}
                     />
                   </div>
                   {showWatermark && (
-                    <div className="text-center text-[7.5px] tracking-widest text-white/40 uppercase font-semibold">
+                    <div className="text-center text-[8px] tracking-widest text-white/40 uppercase">
                       BUILT ON ARC PROTOCOL
                     </div>
                   )}
@@ -1109,58 +1035,58 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
 
       {/* Share to Instagram Story Modal (Desktop / Fallback) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade">
           <div className="w-full max-w-md rounded-2xl border border-line bg-card p-6 shadow-2xl">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white shadow-md">
-                <InstagramIcon size={24} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white">
+                <InstagramIcon size={22} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-fg">Ready for Instagram Story</h3>
-                <p className="text-xs text-muted">1080×1920 HD Story image saved</p>
+                <h3 className="text-base font-semibold text-fg">Ready for Instagram Story</h3>
+                <p className="text-xs text-muted">1080×1920 HD Story Image saved</p>
               </div>
             </div>
 
-            <div className="mt-5 space-y-3 rounded-xl border border-line/60 bg-bg p-4 text-xs text-muted">
-              <div className="flex items-start gap-3">
+            <div className="mt-4 space-y-3 rounded-xl border border-line/60 bg-bg p-3.5 text-xs text-muted">
+              <div className="flex items-start gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">
                   1
                 </span>
                 <p>
-                  <strong>Saved:</strong> The image was downloaded to your device and copied to your clipboard.
+                  <strong>Downloaded:</strong> Image was saved to your downloads and copied to your clipboard.
                 </p>
               </div>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">
                   2
                 </span>
                 <p>
-                  <strong>Open Instagram:</strong> Open Instagram on your phone, swipe right or tap &quot;+&quot; to create a Story.
+                  <strong>Open Instagram:</strong> On mobile, swipe right to create a new Story and pick the downloaded image from your gallery.
                 </p>
               </div>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">
                   3
                 </span>
                 <p>
-                  <strong>Post:</strong> Select the image from your camera roll, add your music or stickers, and share!
+                  <strong>Tag & Share:</strong> Add your music or stickers and share with your followers!
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 flex gap-2">
+            <div className="mt-5 flex gap-2">
               <a
                 href="https://www.instagram.com"
                 target="_blank"
                 rel="noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg px-4 py-2.5 text-xs font-semibold text-bg transition hover:opacity-90"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fg px-4 py-2.5 text-xs font-semibold text-bg transition hover:opacity-90"
               >
                 <span>Open Instagram</span>
               </a>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-xl border border-line px-4 py-2.5 text-xs text-muted hover:text-fg"
+                className="rounded-lg border border-line px-4 py-2.5 text-xs text-muted hover:text-fg"
               >
                 Close
               </button>
@@ -1172,7 +1098,7 @@ export function StoryCardStudio({ data }: { data: StoryData }) {
   );
 }
 
-// ─── Canvas Drawing Utilities ──────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function drawRoundRect(
   ctx: CanvasRenderingContext2D,

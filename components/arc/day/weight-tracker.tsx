@@ -50,6 +50,9 @@ export function WeightTracker({
             const n = Number(value);
             if (value !== "" && Number.isFinite(n)) setValue(n.toFixed(1));
           }}
+          suppressHydrationWarning
+          data-form-type="other"
+          data-lpignore="true"
           className="tabular h-11 w-28 rounded-lg border border-line bg-surface px-3 text-sm focus:border-fg focus:outline-none disabled:opacity-50"
         />
         <span className="text-sm text-muted">kg</span>

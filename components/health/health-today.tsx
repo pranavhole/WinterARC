@@ -79,7 +79,7 @@ export function HealthToday({
         ))}
       </dl>
       <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-        <span>
+        <span suppressHydrationWarning>
           ↻ {metric ? SOURCE_LABEL[metric.source] : "Synced"} · {syncedLabel(last, timeZone)}
         </span>
         {google && isToday ? <SyncButton /> : null}
