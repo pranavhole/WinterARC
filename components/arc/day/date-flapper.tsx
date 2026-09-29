@@ -105,7 +105,7 @@ export function FlapCard({
 
   return (
     <span
-      className={`relative inline-flex items-center justify-center [perspective:320px] overflow-hidden rounded-[6px] bg-surface font-mono font-bold tabular-nums text-fg shadow-xs select-none border border-line ${
+      className={`relative inline-flex items-center justify-center [perspective:400px] overflow-hidden rounded-[6px] bg-gradient-to-b from-[#2a2926] via-[#201f1c] to-[#151412] font-mono font-extrabold tabular-nums text-[#faf8f5] shadow-[0_3px_8px_rgba(0,0,0,0.24),0_1px_2px_rgba(0,0,0,0.18)] select-none border border-[#3e3c36] ring-1 ring-black/40 ${
         isLarge
           ? "h-9 min-w-7 px-1 text-xl sm:h-10 sm:min-w-8 sm:text-2xl"
           : wide
@@ -117,30 +117,32 @@ export function FlapCard({
         key={text}
         className="animate-flap-flip flex h-full w-full items-center justify-center"
       >
-        {/* Top half subtle tint for mechanical two-leaf effect */}
+        {/* Top half subtle glass-leaf lighting */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-subtle/50 border-b border-line/70"
+          className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/[0.12] to-transparent border-b border-black/80"
         />
 
-        {/* Center split line with subtle bottom highlight */}
+        {/* Center split line with physical groove shadow */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-line shadow-[0_1px_0_rgba(255,255,255,0.9)]"
+          className="pointer-events-none absolute inset-x-0 top-1/2 h-[1.5px] -translate-y-1/2 bg-black shadow-[0_1px_0_rgba(255,255,255,0.12)]"
         />
 
-        {/* Mechanical side notches at the hinge */}
+        {/* Mechanical side hinge notches */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-1/2 h-1.5 w-[2px] -translate-y-1/2 rounded-r-xs bg-bg"
+          className="pointer-events-none absolute left-0 top-1/2 h-1.5 w-[2.5px] -translate-y-1/2 rounded-r-xs bg-bg border-y border-black/60 shadow-inner"
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute right-0 top-1/2 h-1.5 w-[2px] -translate-y-1/2 rounded-l-xs bg-bg"
+          className="pointer-events-none absolute right-0 top-1/2 h-1.5 w-[2.5px] -translate-y-1/2 rounded-l-xs bg-bg border-y border-black/60 shadow-inner"
         />
 
-        {/* The character/text in deep sharp ink */}
-        <span className="relative z-10 leading-none tracking-tight text-fg font-extrabold">{text}</span>
+        {/* The character/text in luminous off-white with edge shadow */}
+        <span className="relative z-10 leading-none tracking-tight text-[#faf8f5] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          {text}
+        </span>
       </span>
     </span>
   );
