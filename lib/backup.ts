@@ -212,7 +212,7 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
     (await prisma.arc.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }));
   if (!arc) return null;
 
-  const [answers, habits, logs, records, tasks, blocks, posts, xpEvents, userBadges, healthMetrics] = await Promise.all([
+  const [answers, habits, logs, records, tasks, blocks, posts, xpEvents, userBadges, healthMetrics, disciplineRules, disciplineLogs] = await Promise.all([
     prisma.assessmentAnswer.findMany({ where: { arcId: arc.id } }),
     prisma.habit.findMany({ where: { arcId: arc.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
     prisma.habitLog.findMany({ where: { userId, habit: { arcId: arc.id } }, orderBy: { date: "asc" } }),
@@ -223,10 +223,33 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
     prisma.xPEvent.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.userBadge.findMany({ where: { userId }, include: { badge: { select: { key: true } } }, orderBy: { earnedAt: "asc" } }),
     prisma.healthDailyMetric.findMany({ where: { userId }, orderBy: { date: "asc" } }),
+    prisma.disciplineRule.findMany({ where: { arcId: arc.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
+    prisma.disciplineLog.findMany({ where: { userId, rule: { arcId: arc.id } }, orderBy: { date: "asc" } }),
   ]);
 
-  const habitRef = new Map(habits.map((h, i) => [h.id, `h${i + 1}`]));
+  const allRules = [
+    ...habits.map((h) => ({ ...h, isDiscipline: false })),
+    ...disciplineRules.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      category: "DISCIPLINE" as const,
+      reason: r.reason,
+      position: r.position,
+      active: r.active,
+      activeFrom: r.activeFrom,
+      deactivatedOn: r.deactivatedOn,
+      isDiscipline: true,
+    })),
+  ];
+
+  const habitRef = new Map(allRules.map((h, i) => [h.id, `h${i + 1}`]));
   const taskRef = new Map(tasks.map((t, i) => [t.id, `t${i + 1}`]));
+
+  const allLogs = [
+    ...logs.map((l) => ({ habit: habitRef.get(l.habitId)!, date: dateToKey(l.date), completed: l.completed })),
+    ...disciplineLogs.map((l) => ({ habit: habitRef.get(l.ruleId)!, date: dateToKey(l.date), completed: l.completed })),
+  ];
 
   return {
     version: BACKUP_VERSION,
@@ -246,7 +269,7 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
       dsaGoal: arc.dsaGoal,
     },
     assessment: Object.fromEntries(answers.map((a) => [a.questionKey, a.answer as z.infer<ReturnType<typeof z.json>>])),
-    habits: habits.map((h) => ({
+    habits: allRules.map((h) => ({
       ref: habitRef.get(h.id)!,
       title: h.title,
       description: h.description,
@@ -257,7 +280,7 @@ export async function buildBackup(userId: string): Promise<Backup | null> {
       activeFrom: dateToKey(h.activeFrom),
       deactivatedOn: h.deactivatedOn ? dateToKey(h.deactivatedOn) : null,
     })),
-    habitLogs: logs.map((l) => ({ habit: habitRef.get(l.habitId)!, date: dateToKey(l.date), completed: l.completed })),
+    habitLogs: allLogs,
     dailyRecords: records.map((r) => ({
       date: dateToKey(r.date),
       steps: r.steps,

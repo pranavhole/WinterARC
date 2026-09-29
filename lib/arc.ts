@@ -161,7 +161,7 @@ export async function loadArcOverview(userId: string) {
   const arc = await getActiveArc(userId);
   if (!arc) return null;
 
-  const [habits, logs, records, tasks, timeBlocks] = await Promise.all([
+  const [habits, logs, records, tasks, timeBlocks, disciplineRules, disciplineLogs] = await Promise.all([
     prisma.habit.findMany({
       where: { arcId: arc.id, arc: { userId } },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
@@ -214,13 +214,37 @@ export async function loadArcOverview(userId: string) {
       orderBy: { start: "asc" },
       select: { id: true, title: true, note: true, start: true, end: true, days: true, habitId: true },
     }),
+    prisma.disciplineRule.findMany({
+      where: { arcId: arc.id, arc: { userId } },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        reason: true,
+        active: true,
+        activeFrom: true,
+        deactivatedOn: true,
+      },
+    }),
+    prisma.disciplineLog.findMany({
+      where: { userId, rule: { arcId: arc.id } },
+      select: { ruleId: true, date: true, completed: true },
+    }),
   ]);
 
-  const statsHabits: StatsHabit[] = habits.map((h) => ({
-    id: h.id,
-    activeFrom: dateToKey(h.activeFrom),
-    deactivatedOn: h.deactivatedOn ? dateToKey(h.deactivatedOn) : null,
-  }));
+  const statsHabits: StatsHabit[] = [
+    ...habits.map((h) => ({
+      id: h.id,
+      activeFrom: dateToKey(h.activeFrom),
+      deactivatedOn: h.deactivatedOn ? dateToKey(h.deactivatedOn) : null,
+    })),
+    ...disciplineRules.map((r) => ({
+      id: r.id,
+      activeFrom: dateToKey(r.activeFrom),
+      deactivatedOn: r.deactivatedOn ? dateToKey(r.deactivatedOn) : null,
+    })),
+  ];
 
   const recordsByDay = new Map<DayKey, DailyRecordView>();
   for (const { date, ...rest } of records) recordsByDay.set(dateToKey(date), rest);
@@ -250,14 +274,21 @@ export async function loadArcOverview(userId: string) {
     list.sort((x, y) => (x.startTime ?? 1e9) - (y.startTime ?? 1e9));
   }
 
-  const logEntries = logs.map((l) => ({ habitId: l.habitId, date: dateToKey(l.date), completed: l.completed }));
+  const logEntries = [
+    ...logs.map((l) => ({ habitId: l.habitId, date: dateToKey(l.date), completed: l.completed })),
+    ...disciplineLogs.map((l) => ({ habitId: l.ruleId, date: dateToKey(l.date), completed: l.completed })),
+  ];
   const doneByDay = new Map<DayKey, Set<string>>();
   // Completions set by a health sync, shown as "Completed via Health".
   const healthDone = new Set<string>();
-  for (const [i, l] of logEntries.entries()) {
+  for (const l of logs) {
     if (!l.completed) continue;
-    (doneByDay.get(l.date) ?? doneByDay.set(l.date, new Set()).get(l.date)!).add(l.habitId);
-    if (logs[i].source === "HEALTH") healthDone.add(`${l.habitId}:${l.date}`);
+    (doneByDay.get(dateToKey(l.date)) ?? doneByDay.set(dateToKey(l.date), new Set()).get(dateToKey(l.date))!).add(l.habitId);
+    if (l.source === "HEALTH") healthDone.add(`${l.habitId}:${dateToKey(l.date)}`);
+  }
+  for (const l of disciplineLogs) {
+    if (!l.completed) continue;
+    (doneByDay.get(dateToKey(l.date)) ?? doneByDay.set(dateToKey(l.date), new Set()).get(dateToKey(l.date))!).add(l.ruleId);
   }
 
   const stats = computeArcStats({
@@ -270,20 +301,37 @@ export async function loadArcOverview(userId: string) {
     tasks: taskSnapshots,
   });
 
-  const views: HabitView[] = habits.map((h) => ({
-    id: h.id,
-    title: h.title,
-    description: h.description,
-    category: h.category,
-    reason: h.reason,
-    active: h.active,
-    integrationType: h.integrationType,
-    integrationTarget: h.integrationTarget,
-  }));
+  const views: HabitView[] = [
+    ...habits.map((h) => ({
+      id: h.id,
+      title: h.title,
+      description: h.description,
+      category: h.category,
+      reason: h.reason,
+      active: h.active,
+      integrationType: h.integrationType,
+      integrationTarget: h.integrationTarget,
+    })),
+    ...disciplineRules.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      category: "DISCIPLINE" as HabitCategoryValue,
+      reason: r.reason,
+      active: r.active,
+      integrationType: "NONE" as HabitIntegrationValue,
+      integrationTarget: null,
+    })),
+  ];
+
+  const allRulesCombined = [
+    ...habits.map((h) => ({ ...h, category: h.category })),
+    ...disciplineRules.map((r) => ({ ...r, category: "DISCIPLINE" as const })),
+  ];
 
   function habitsOn(key: DayKey) {
     const done = doneByDay.get(key);
-    return habits
+    return allRulesCombined
       .filter((_, i) => isHabitActiveOn(statsHabits[i], key))
       .map((h) => ({
         id: h.id,
@@ -297,9 +345,23 @@ export async function loadArcOverview(userId: string) {
 
   const blocks: BlockView[] = timeBlocks;
 
-  const snapshotHabits = habits.map((h, i) => ({ ...statsHabits[i], category: h.category }));
+  const snapshotHabits = [
+    ...habits.map((h, i) => ({ ...statsHabits[i], category: h.category })),
+    ...disciplineRules.map((r, i) => ({ ...statsHabits[habits.length + i], category: "DISCIPLINE" as const })),
+  ];
 
-  return { arc, habits: views, habitsOn, recordsByDay, tasksByDay, blocks, stats, doneByDay, snapshotHabits };
+  return {
+    arc,
+    habits: views,
+    disciplineRules,
+    habitsOn,
+    recordsByDay,
+    tasksByDay,
+    blocks,
+    stats,
+    doneByDay,
+    snapshotHabits,
+  };
 }
 
 /** Everything the Arc screens need, loaded once per request. */

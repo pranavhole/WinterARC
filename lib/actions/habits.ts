@@ -11,10 +11,19 @@ import { arcContext, dayContext, fail, logError, OK, revalidateArc, type ActionR
 
 async function ownedHabit(arcId: string, userId: string, habitId: unknown) {
   if (typeof habitId !== "string" || habitId.length > 64) return null;
-  return prisma.habit.findFirst({
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
+    select: { id: true, active: true, activeFrom: true, deactivatedOn: true, category: true },
+  });
+  if (habit) return { ...habit, isDisciplineModel: false };
+
+  const rule = await prisma.disciplineRule.findFirst({
     where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
     select: { id: true, active: true, activeFrom: true, deactivatedOn: true },
   });
+  if (rule) return { ...rule, category: "DISCIPLINE" as const, isDisciplineModel: true };
+
+  return null;
 }
 
 /** Check or uncheck a rule for a day in the Arc (today or earlier). */
@@ -38,12 +47,22 @@ export async function toggleHabit(habitId: string, date: string, completed: bool
     if (!activeThatDay) return fail();
 
     await ensureDailyRecord(arc, user.id, day);
-    // A manual toggle overrides anything a health sync set, and sync never overwrites it.
-    await prisma.habitLog.upsert({
-      where: { habitId_date: { habitId: habit.id, date: keyToDate(day) } },
-      create: { habitId: habit.id, userId: user.id, date: keyToDate(day), completed, source: "MANUAL" },
-      update: { completed, source: "MANUAL" },
-    });
+
+    if (habit.isDisciplineModel) {
+      await prisma.disciplineLog.upsert({
+        where: { ruleId_date: { ruleId: habit.id, date: keyToDate(day) } },
+        create: { ruleId: habit.id, userId: user.id, date: keyToDate(day), completed },
+        update: { completed },
+      });
+    } else {
+      // A manual toggle overrides anything a health sync set, and sync never overwrites it.
+      await prisma.habitLog.upsert({
+        where: { habitId_date: { habitId: habit.id, date: keyToDate(day) } },
+        create: { habitId: habit.id, userId: user.id, date: keyToDate(day), completed, source: "MANUAL" },
+        update: { completed, source: "MANUAL" },
+      });
+    }
+
     await runAchievements(user.id, day);
   } catch (error) {
     logError("toggleHabit", error);
@@ -62,10 +81,18 @@ export async function updateHabit(habitId: string, input: unknown): Promise<Acti
     const habit = await ownedHabit(ctx.arc.id, ctx.user.id, habitId);
     if (!habit) return fail();
     const { title, description, category } = parsed.data;
-    await prisma.habit.update({
-      where: { id: habit.id },
-      data: { title, description: description || null, category },
-    });
+
+    if (habit.isDisciplineModel) {
+      await prisma.disciplineRule.update({
+        where: { id: habit.id },
+        data: { title, description: description || null },
+      });
+    } else {
+      await prisma.habit.update({
+        where: { id: habit.id },
+        data: { title, description: description || null, category },
+      });
+    }
   } catch (error) {
     logError("updateHabit", error);
     return fail("Something went wrong. Your rule wasn't changed. Try again.");
@@ -118,6 +145,20 @@ export async function removeHabit(habitId: string): Promise<ActionResult> {
     const { arc } = ctx;
     const habit = await ownedHabit(arc.id, ctx.user.id, habitId);
     if (!habit || !habit.active) return fail();
+
+    if (habit.isDisciplineModel) {
+      const history = await prisma.disciplineLog.count({ where: { ruleId: habit.id, completed: true } });
+      if (history === 0) {
+        await prisma.disciplineRule.delete({ where: { id: habit.id } });
+      } else {
+        await prisma.disciplineRule.update({
+          where: { id: habit.id },
+          data: { active: false, deactivatedOn: keyToDate(arc.today) },
+        });
+      }
+      revalidateArc();
+      return OK;
+    }
 
     const remaining = await prisma.habit.count({ where: { arcId: arc.id, active: true, id: { not: habit.id } } });
     if (remaining === 0) return fail("Your Arc needs at least one rule.");

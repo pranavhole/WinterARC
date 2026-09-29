@@ -211,7 +211,7 @@ export function PostCard({ post, onDeleted }: { post: PostView; onDeleted?: (id:
             <label className="text-muted">Reason:</label>
             <select
               value={reportReason}
-              onChange={(e) => setReportReason(e.target.value as any)}
+              onChange={(e) => setReportReason(e.target.value as "SPAM" | "HARASSMENT" | "INAPPROPRIATE" | "OTHER")}
               className="rounded border border-line bg-bg px-2 py-1 text-xs"
             >
               <option value="SPAM">Spam</option>

@@ -27,6 +27,17 @@ export const habitInputSchema = z.object({
 
 export type HabitInput = z.infer<typeof habitInputSchema>;
 
+export const disciplineInputSchema = z.object({
+  title: cleanText(HABIT_TITLE_MAX),
+  description: z
+    .string()
+    .max(HABIT_DESCRIPTION_MAX)
+    .nullish()
+    .transform((s) => (s?.trim() ? s.trim() : null)),
+});
+
+export type DisciplineInput = z.infer<typeof disciplineInputSchema>;
+
 const minutesOfDay = z.number().int().min(0).max(1439);
 
 /** A partial update of one day's metrics. `null` clears a value. */
