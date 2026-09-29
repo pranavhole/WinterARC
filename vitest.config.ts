@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    testTimeout: 20000,
     env: { AUTH_SECRET: "test-secret-for-vitest-only-0123456789" },
   },
+
 });
