@@ -83,16 +83,29 @@ export type ProfileCard = ReturnType<typeof profileCard>;
 export async function getProfile(username: string, viewerId: string | null) {
   const user = await prisma.user.findUnique({ where: { username: username.toLowerCase() }, select: PROFILE_SELECT });
   if (!user) return null;
+  if (viewerId) {
+    const isUserBlocked = await prisma.userBlock.count({
+      where: {
+        OR: [
+          { blockerId: viewerId, blockedId: user.id },
+          { blockerId: user.id, blockedId: viewerId },
+        ],
+      },
+    });
+    if (isUserBlocked > 0) return null;
+  }
   const friend = viewerId ? await areFriends(viewerId, user.id) : false;
   const rel = relationship(user.id, viewerId, friend);
   if (!canView(user.profileVisibility, rel)) return { visible: false as const, name: user.name, username: user.username, rel };
 
   const card = profileCard(user, rel);
-  const [badges, friendCount, milestones] = await Promise.all([
+  const [badges, friendCount, followersCount, followingCount, milestones] = await Promise.all([
     card.showBadges
       ? prisma.userBadge.findMany({ where: { userId: user.id }, orderBy: { earnedAt: "desc" }, select: { earnedAt: true, badge: { select: { key: true } } } })
       : Promise.resolve([]),
     prisma.friendship.count({ where: { userId: user.id } }),
+    prisma.follow.count({ where: { followingId: user.id } }),
+    prisma.follow.count({ where: { followerId: user.id } }),
     prisma.post.findMany({
       where: {
         authorId: user.id,
@@ -110,6 +123,8 @@ export async function getProfile(username: string, viewerId: string | null) {
     rel,
     card,
     friendCount,
+    followersCount,
+    followingCount,
     badges: badges.flatMap((b) => {
       const def = BADGE_BY_KEY.get(b.badge.key);
       return def ? [{ key: def.key, name: def.name, icon: def.icon, earnedAt: b.earnedAt }] : [];

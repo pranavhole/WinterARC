@@ -6,7 +6,8 @@ import { pairKey } from "@/lib/social/friend-rules";
 import { getProfile } from "@/lib/social/profile";
 import { ProfileView } from "@/components/social/profile-view";
 import { PublicShell } from "@/components/social/public-shell";
-import { AddFriendButton } from "@/components/social/friend-actions";
+import { AddFriendButton, FollowButton } from "@/components/social/friend-actions";
+import { isFollowing } from "@/lib/social/following";
 import { MountainIcon } from "@/components/ui/icons";
 
 type Props = { params: Promise<{ username: string }> };
@@ -46,7 +47,15 @@ export default async function PublicProfilePage({ params }: Props) {
 
   return (
     <PublicShell signedIn={!!viewer}>
-      <ProfileView card={profile.card} friendCount={profile.friendCount} badges={profile.badges} milestones={profile.milestones} actions={actions} />
+      <ProfileView
+        card={profile.card}
+        friendCount={profile.friendCount}
+        followersCount={profile.followersCount}
+        followingCount={profile.followingCount}
+        badges={profile.badges}
+        milestones={profile.milestones}
+        actions={actions}
+      />
     </PublicShell>
   );
 }
@@ -54,7 +63,15 @@ export default async function PublicProfilePage({ params }: Props) {
 async function FriendControl({ viewerId, username }: { viewerId: string; username: string }) {
   const target = await prisma.user.findUnique({ where: { username: username.toLowerCase() }, select: { id: true } });
   if (!target) return null;
-  const request = await prisma.friendRequest.findUnique({ where: { pairKey: pairKey(viewerId, target.id) }, select: { status: true, senderId: true } });
+  const [request, following] = await Promise.all([
+    prisma.friendRequest.findUnique({ where: { pairKey: pairKey(viewerId, target.id) }, select: { status: true, senderId: true } }),
+    isFollowing(viewerId, target.id),
+  ]);
   const state = request?.status === "PENDING" ? (request.senderId === viewerId ? "sent" : "received") : "none";
-  return <AddFriendButton userId={target.id} state={state} />;
+  return (
+    <div className="flex items-center gap-3">
+      <AddFriendButton userId={target.id} state={state} />
+      <FollowButton userId={target.id} following={following} />
+    </div>
+  );
 }

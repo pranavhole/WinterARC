@@ -6,7 +6,7 @@ import { buttonClass } from "@/components/ui/button";
 import { PostCard, type PostView } from "@/components/social/post-card";
 
 /** First page comes from the server; "Load more" fetches the next 20 by cursor. */
-export function FeedList({ initial, nextCursor, scope }: { initial: PostView[]; nextCursor: string | null; scope: "all" | "friends" }) {
+export function FeedList({ initial, nextCursor, scope }: { initial: PostView[]; nextCursor: string | null; scope: "all" | "following" | "friends" }) {
   const [posts, setPosts] = useState(initial);
   const [cursor, setCursor] = useState(nextCursor);
   const [pending, start] = useTransition();
@@ -14,7 +14,11 @@ export function FeedList({ initial, nextCursor, scope }: { initial: PostView[]; 
   if (!posts.length) {
     return (
       <p className="py-16 text-center text-sm text-muted">
-        {scope === "friends" ? "Nothing from your friends yet." : "No posts yet. Share the first milestone."}
+        {scope === "following"
+          ? "Nothing from people you follow yet."
+          : scope === "friends"
+            ? "Nothing from your friends yet."
+            : "No posts yet. Share the first milestone."}
       </p>
     );
   }

@@ -9,6 +9,7 @@ import {
   searchUsersAction,
   sendFriendRequestAction,
 } from "@/lib/actions/friends";
+import { toggleFollowAction } from "@/lib/actions/social";
 import type { SearchResult } from "@/lib/social/friends";
 import { buttonClass } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -155,5 +156,28 @@ export function RemoveFriendButton({ friendId, name }: { friendId: string; name:
         No
       </button>
     </span>
+  );
+}
+
+export function FollowButton({ userId, following }: { userId: string; following: boolean }) {
+  const [isFollowing, setIsFollowing] = useState(following);
+  const [pending, start] = useTransition();
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      className={buttonClass(isFollowing ? "secondary" : "primary", "min-h-9 px-4 text-xs")}
+      onClick={() =>
+        start(async () => {
+          const res = await toggleFollowAction(userId);
+          if (res.ok && res.following !== undefined) {
+            setIsFollowing(res.following);
+          }
+        })
+      }
+    >
+      {isFollowing ? "Following" : "Follow"}
+    </button>
   );
 }

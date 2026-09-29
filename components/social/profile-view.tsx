@@ -23,12 +23,16 @@ type Milestone = {
 export function ProfileView({
   card,
   friendCount,
+  followersCount = 0,
+  followingCount = 0,
   badges,
   milestones,
   actions,
 }: {
   card: ProfileCard;
   friendCount: number;
+  followersCount?: number;
+  followingCount?: number;
   badges: { key: string; name: string; icon: BadgeIcon }[];
   milestones: Milestone[];
   actions?: React.ReactNode;
@@ -50,10 +54,12 @@ export function ProfileView({
         </div>
       ) : null}
 
-      <dl className="mt-8 grid grid-cols-3 border-y border-line">
+      <dl className="mt-8 grid grid-cols-2 sm:grid-cols-5 border-y border-line">
         <Stat label="Current Arc" value={card.arcDay !== null ? `Day ${card.arcDay}` : "—"} sub={card.arcDay !== null && card.arcLength ? `of ${card.arcLength}` : undefined} />
         <Stat label="Streak" value={card.streak !== null ? String(card.streak) : "—"} sub={card.streak !== null ? (card.streak === 1 ? "day" : "days") : undefined} border />
         <Stat label="Friends" value={String(friendCount)} border />
+        <Stat label="Followers" value={String(followersCount)} border />
+        <Stat label="Following" value={String(followingCount)} border />
       </dl>
 
       {card.showBadges ? (

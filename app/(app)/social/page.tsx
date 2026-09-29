@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Community" };
 
 export default async function SocialPage({ searchParams }: { searchParams: Promise<{ scope?: string }> }) {
   const user = await requireUser();
-  const scope = (await searchParams).scope === "friends" ? "friends" : "all";
+  const rawScope = (await searchParams).scope;
+  const scope = rawScope === "friends" ? "friends" : rawScope === "following" ? "following" : "all";
   const [feed, share] = await Promise.all([getFeed(user.id, scope), getShareState(user.id)]);
 
   const milestones = share.milestone
@@ -33,14 +34,14 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
           <p className="mt-2 text-sm text-muted">Progress, milestones and reflections from people doing their Arc.</p>
         </div>
         <nav aria-label="Feed" className="flex shrink-0 rounded-lg border border-line p-0.5 text-xs">
-          {(["all", "friends"] as const).map((s) => (
+          {(["all", "following", "friends"] as const).map((s) => (
             <Link
               key={s}
-              href={s === "all" ? "/social" : "/social?scope=friends"}
+              href={s === "all" ? "/social" : `/social?scope=${s}`}
               aria-current={scope === s ? "page" : undefined}
               className={cn("rounded-md px-3 py-1.5", scope === s ? "bg-fg text-bg" : "text-muted hover:text-fg")}
             >
-              {s === "all" ? "Everyone" : "Friends"}
+              {s === "all" ? "Everyone" : s === "following" ? "Following" : "Friends"}
             </Link>
           ))}
         </nav>

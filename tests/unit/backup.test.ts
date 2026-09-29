@@ -153,3 +153,4 @@ describe("ARC backup parser", () => {
     expect(parseBackup(JSON.stringify(broken)).ok).toBe(false);
   });
 });
+

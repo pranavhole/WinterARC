@@ -24,6 +24,10 @@ function describe(n: Item): { text: string; href: string | null } {
       return { text: `You unlocked ${BADGE_BY_KEY.get(n.referenceId ?? "")?.name ?? "a new badge"}.`, href: "/badges" };
     case "STREAK":
       return { text: `You reached a ${n.referenceId} day streak.`, href: "/arc/progress" };
+    case "COMMENT":
+      return { text: `${who} commented on your post.`, href: n.referenceId ? `/milestone/${n.referenceId}` : "/social" };
+    case "FOLLOW":
+      return { text: `${who} started following you.`, href: n.actor?.username ? `/u/${n.actor.username}` : "/social" };
   }
 }
 

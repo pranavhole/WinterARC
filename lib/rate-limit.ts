@@ -14,6 +14,9 @@ export const LIMITS = {
   healthIngest: { max: 60, windowSeconds: 60 * 60 },
   search: { max: 60, windowSeconds: 60 * 10 },
   deviceToken: { max: 5, windowSeconds: 60 * 60 * 24 },
+  comment: { max: 60, windowSeconds: 60 * 60 },
+  follow: { max: 60, windowSeconds: 60 * 60 },
+  report: { max: 10, windowSeconds: 60 * 60 },
 } as const;
 
 export type RateLimitBucket = keyof typeof LIMITS;
