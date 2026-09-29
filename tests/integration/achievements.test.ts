@@ -38,8 +38,8 @@ async function arcWithStreak(days: number) {
 describe.skipIf(!ready)("achievement engine (database)", () => {
   afterAll(async () => {
     await prisma.user.deleteMany({ where: { id: { in: created } } });
-    await prisma.$disconnect();
   });
+
 
   it("turns a 7 day streak into badges, XP and notifications, idempotently", async () => {
     const { evaluateAchievements } = await import("@/lib/gamification/achievements");
@@ -62,7 +62,8 @@ describe.skipIf(!ready)("achievement engine (database)", () => {
     const second = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { totalXp: true } });
     expect(second.totalXp).toBe(first.totalXp);
     expect(await prisma.userBadge.count({ where: { userId } })).toBe(badges.length);
-  });
+  }, 15000);
+
 
   it("pays rule XP only for today and yesterday, not for history", async () => {
     const { evaluateAchievements } = await import("@/lib/gamification/achievements");

@@ -10,8 +10,8 @@ import {
   getCommentsAction,
   blockUserAction,
   reportAction,
-  type CommentView,
 } from "@/lib/actions/social";
+import type { CommentView } from "@/lib/social/comments";
 import { BADGE_BY_KEY } from "@/lib/gamification/badges";
 import { milestoneHeadline, milestoneTitle, parseMilestone } from "@/lib/social/milestones";
 import { REACTION_EMOJI, REACTION_LABEL, type Reaction } from "@/lib/social/reactions";

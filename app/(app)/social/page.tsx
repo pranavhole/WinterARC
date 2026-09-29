@@ -1,59 +1,83 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { BADGE_BY_KEY } from "@/lib/gamification/badges";
-import { getFeed } from "@/lib/social/feed";
-import { milestoneKey, milestoneTitle, reachedMilestones } from "@/lib/social/milestones";
-import { getShareState } from "@/lib/social/posts";
-import { cn } from "@/lib/utils";
-import { Composer } from "@/components/social/composer";
-import { FeedList } from "@/components/social/feed-list";
+import { prisma } from "@/lib/db";
+import { getArcOverview } from "@/lib/arc";
+import { BADGES } from "@/lib/gamification/badges";
 import { SectionLabel } from "@/components/ui/label";
+import { StoryCardStudio, type StoryData } from "@/components/social/story-card-studio";
 
-export const metadata: Metadata = { title: "Community" };
+export const metadata: Metadata = { title: "Arc Story Studio" };
 
-export default async function SocialPage({ searchParams }: { searchParams: Promise<{ scope?: string }> }) {
+export default async function SocialPage() {
   const user = await requireUser();
-  const rawScope = (await searchParams).scope;
-  const scope = rawScope === "friends" ? "friends" : rawScope === "following" ? "following" : "all";
-  const [feed, share] = await Promise.all([getFeed(user.id, scope), getShareState(user.id)]);
 
-  const milestones = share.milestone
-    ? reachedMilestones(share.milestone).map((m) => ({ value: milestoneKey(m), label: milestoneTitle(m, share.milestone!.arcLength || null) }))
-    : [];
-  const badges = [...share.badges].flatMap((key) => {
-    const def = BADGE_BY_KEY.get(key);
-    return def ? [{ value: def.key, label: def.name }] : [];
-  });
+  const [dbUser, overview, userBadges] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, username: true, image: true, totalXp: true },
+    }),
+    getArcOverview(user.id),
+    prisma.userBadge.findMany({
+      where: { userId: user.id },
+      include: { badge: true },
+      orderBy: { earnedAt: "desc" },
+    }),
+  ]);
+
+  const earnedBadges = userBadges.map((ub) => ({
+    key: ub.badge.key,
+    name: ub.badge.name,
+    description: ub.badge.description,
+    icon: ub.badge.icon,
+    xpReward: ub.badge.xpReward,
+  }));
+
+  const allBadgesList =
+    earnedBadges.length > 0
+      ? earnedBadges
+      : BADGES.slice(0, 8).map((b) => ({
+          key: b.key,
+          name: b.name,
+          description: b.description,
+          icon: b.icon,
+          xpReward: b.xpReward,
+        }));
+
+  const dayNum = overview?.arc.dayNumber ?? 1;
+  const completedCount = overview?.stats.completedDays ?? 0;
+  const calculatedConsistency = dayNum > 0 ? Math.round((completedCount / dayNum) * 100) : 100;
+
+  const storyData: StoryData = {
+    dayNumber: dayNum,
+    arcLength: overview?.arc.length ?? 90,
+    streak: overview?.stats.currentStreak ?? 0,
+    bestStreak: overview?.stats.bestStreak ?? 0,
+    statement: overview?.arc.statement || "Silence. Focus. Execution.",
+    focusKind: overview?.arc.focusKind ?? "DISCIPLINE",
+    xp: dbUser?.totalXp ?? 0,
+    consistency: calculatedConsistency,
+    completedDays: completedCount,
+    user: {
+      name: dbUser?.name ?? user.name ?? "Arc Athlete",
+      username: dbUser?.username ?? null,
+      image: dbUser?.image ?? null,
+    },
+    badges: allBadgesList,
+  };
+
 
   return (
-    <div className="animate-fade">
-      <div className="flex items-end justify-between gap-4">
+    <div className="animate-fade space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <SectionLabel as="h1">Arc community</SectionLabel>
-          <p className="mt-2 text-sm text-muted">Progress, milestones and reflections from people doing their Arc.</p>
+          <SectionLabel as="h1">Story Studio</SectionLabel>
+          <p className="mt-1 text-xs text-muted">
+            Customize your daily Arc story card with live achievements, streak, and discipline metrics. Share directly to Instagram Story.
+          </p>
         </div>
-        <nav aria-label="Feed" className="flex shrink-0 rounded-lg border border-line p-0.5 text-xs">
-          {(["all", "following", "friends"] as const).map((s) => (
-            <Link
-              key={s}
-              href={s === "all" ? "/social" : `/social?scope=${s}`}
-              aria-current={scope === s ? "page" : undefined}
-              className={cn("rounded-md px-3 py-1.5", scope === s ? "bg-fg text-bg" : "text-muted hover:text-fg")}
-            >
-              {s === "all" ? "Everyone" : s === "following" ? "Following" : "Friends"}
-            </Link>
-          ))}
-        </nav>
       </div>
 
-      <div className="mt-6">
-        <Composer milestones={milestones} badges={badges} hasArc={share.overview !== null} />
-      </div>
-
-      <section aria-label="Posts" className="mt-4">
-        <FeedList key={`${scope}:${feed.items[0]?.id ?? "none"}:${feed.items.length}`} initial={feed.items} nextCursor={feed.nextCursor} scope={scope} />
-      </section>
+      <StoryCardStudio data={storyData} />
     </div>
   );
 }
