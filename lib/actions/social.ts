@@ -14,6 +14,8 @@ import { ensureUsername } from "@/lib/social/profile";
 import { REACTIONS } from "@/lib/social/reactions";
 import { fail, logError, OK, type ActionResult } from "@/lib/actions/context";
 
+export type { CommentView };
+
 const idSchema = z.string().min(1).max(64);
 
 function revalidateSocial() {
