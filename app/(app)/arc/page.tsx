@@ -8,7 +8,7 @@ import { focusLabel } from "@/lib/modules";
 import { addDays, getWeekDays, localHour, localMinutes, type DayKey } from "@/lib/utils";
 import { weeklySummary } from "@/lib/weekly";
 import { blocksFor } from "@/lib/timetable";
-import { getDayFocus } from "@/lib/focus";
+import { getDayExtras } from "@/lib/focus";
 import { getBadgeBoard, getXpSummary } from "@/lib/gamification/board";
 import { getHealthConnections, getHealthDay, SOURCE_LABEL } from "@/lib/health/view";
 import { dailyMessage } from "@/lib/motivation";
@@ -64,7 +64,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const { arc, stats, recordsByDay, tasksByDay } = overview;
   const date = resolveArcDate(arc, params.date);
   // The only queries that need the resolved date.
-  const [healthDay, focusLine] = await Promise.all([getHealthDay(user.id, date), getDayFocus(arc.id, user.id, date)]);
+  const [healthDay, extras] = await Promise.all([getHealthDay(user.id, date), getDayExtras(arc.id, user.id, date)]);
   const isToday = date === arc.today;
   const isFuture = date > arc.today;
   const editable = !isFuture;
@@ -122,6 +122,12 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const activeHealth = healthConnections.filter((c) => c.status === "ACTIVE");
   const lastSync = activeHealth.map((c) => c.lastSyncedAt).filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const loggedSleep = record ? sleepMinutes(record.bedtime, record.wakeTime) : null;
+  const shown = {
+    steps: record?.stepsSource === "MANUAL" ? record.steps : (healthDay?.steps ?? record?.steps ?? null),
+    sleepMinutes: record?.sleepSource === "MANUAL" ? loggedSleep : (healthDay?.sleepMinutes ?? loggedSleep),
+    exerciseMinutes: extras.exerciseMinutes ?? healthDay?.exerciseMinutes ?? null,
+    weight: record?.weightSource === "MANUAL" ? record.weight : (healthDay?.weight ?? record?.weight ?? null),
+  };
 
   const earnedBadges = badgeBoard
     .filter((b) => b.earnedAt)
@@ -141,7 +147,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
           </div>
 
           <DashCard icon={TargetIcon} title="Today's Focus">
-            <FocusInput key={date} date={date} initial={focusLine} editable={editable} />
+            <FocusInput key={date} date={date} initial={extras.focus} editable={editable} />
             {message ? <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-muted">{message.text}</p> : null}
           </DashCard>
 
@@ -196,19 +202,16 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
           {!isFuture ? (
             <TodayHealthCard
               metrics={{
-                steps: healthDay?.steps ?? record?.steps ?? null,
+                ...shown,
                 stepGoal: record?.stepGoal ?? arc.goals.stepGoal,
-                sleepMinutes: healthDay?.sleepMinutes ?? loggedSleep,
                 sleepGoalMinutes: Math.round((record?.sleepGoal ?? arc.goals.sleepGoal) * 60),
-                exerciseMinutes: healthDay?.exerciseMinutes ?? null,
-                weight: healthDay?.weight ?? record?.weight ?? null,
               }}
               syncedAt={lastSync}
               connected={activeHealth.length > 0}
               expired={!activeHealth.length && healthConnections.some((c) => c.status === "EXPIRED")}
               canSync={isToday && activeHealth.some((c) => c.provider === "GOOGLE_HEALTH")}
               timeZone={arc.timezone}
-              actions={<HealthActions date={date} steps={record?.steps ?? null} editable={editable} connected={activeHealth.length > 0} />}
+              actions={<HealthActions date={date} values={shown} editable={editable} connected={activeHealth.length > 0} />}
             />
           ) : null}
 

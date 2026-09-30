@@ -254,21 +254,23 @@ model DailyRecord {
   arcId  String
   date   DateTime @db.Date
 
-  steps        Int?
-  weight       Float?
-  studyHours   Float?
-  dsaProblems  Int?
+  steps           Int?
+  weight          Float?
+  studyHours      Float?
+  dsaProblems     Int?
   // Minutes after midnight. Bedtime is the night before `date`.
-  bedtime      Int?
-  wakeTime     Int?
-  sleepQuality Int?
-  journal      String?    @db.Text
+  bedtime         Int?
+  wakeTime        Int?
+  sleepQuality    Int?
+  journal         String?    @db.Text
   // "Today's Focus": one line the user sets for the day.
-  focus        String?
+  focus           String?
+  // Exercise logged by hand, in minutes. Imported exercise lives on HealthDailyMetric.
+  exerciseMinutes Int?
   // HEALTH when the value came from a health sync; a manual edit clears it.
-  stepsSource  LogSource?
-  sleepSource  LogSource?
-  weightSource LogSource?
+  stepsSource     LogSource?
+  sleepSource     LogSource?
+  weightSource    LogSource?
 
   stepGoal   Int?
   sleepGoal  Float?

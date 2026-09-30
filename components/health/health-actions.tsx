@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, useTransition } from "react";
-import { saveDailyRecord } from "@/lib/actions/daily-record";
+import { saveManualLog } from "@/lib/actions/manual-log";
 import { ANDROID_APP_URL, isAndroid } from "@/lib/android";
 import { buttonClass } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -17,28 +17,36 @@ function detect(): Platform {
 }
 
 /**
- * Footer of the TODAY card. On a laptop: type steps in by hand, or read how to
- * connect Google Fit from the phone. On Android: the same guide, with the app
- * download inline.
+ * Footer of the TODAY card: log steps, sleep, exercise and weight by hand, and
+ * (when nothing is connected) the guide to connecting Google Fit from a phone.
  */
 export function HealthActions({
   date,
-  steps,
+  values,
   editable,
   connected,
 }: {
   date: string;
-  steps: number | null;
+  values: ManualValues;
   editable: boolean;
   connected: boolean;
 }) {
   const platform = useSyncExternalStore(noSubscribe, detect, (): Platform => "server");
   const [guide, setGuide] = useState(false);
+  const [logging, setLogging] = useState(false);
   if (platform === "server") return null;
 
   return (
     <div className="mt-4 border-t border-line pt-4">
-      {platform !== "android" && editable ? <ManualSteps key={`${date}:${steps ?? ""}`} date={date} steps={steps} /> : null}
+      {editable ? (
+        logging ? (
+          <ManualLog key={date} date={date} values={values} onDone={() => setLogging(false)} />
+        ) : (
+          <button type="button" onClick={() => setLogging(true)} className={buttonClass("secondary", "min-h-9 w-full px-3 text-xs")}>
+            Log manually
+          </button>
+        )
+      ) : null}
       {!connected ? (
         <button type="button" onClick={() => setGuide(true)} className="mt-3 text-xs text-muted underline underline-offset-4 hover:text-fg">
           Connect Google Fit
@@ -49,50 +57,96 @@ export function HealthActions({
   );
 }
 
-function ManualSteps({ date, steps }: { date: string; steps: number | null }) {
-  const [value, setValue] = useState(steps?.toString() ?? "");
+export type ManualValues = {
+  steps: number | null;
+  sleepMinutes: number | null;
+  exerciseMinutes: number | null;
+  weight: number | null;
+};
+
+/** "" → null (clear); otherwise a finite number or undefined when invalid. */
+function parse(value: string): number | null | undefined {
+  const t = value.replace(/[,\s]/g, "");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function ManualLog({ date, values, onDone }: { date: string; values: ManualValues; onDone: () => void }) {
+  const [steps, setSteps] = useState(values.steps?.toString() ?? "");
+  const [sleep, setSleep] = useState(values.sleepMinutes !== null ? String(Math.round((values.sleepMinutes / 60) * 100) / 100) : "");
+  const [exercise, setExercise] = useState(values.exerciseMinutes?.toString() ?? "");
+  const [weight, setWeight] = useState(values.weight?.toString() ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  const field = (id: string, label: string, unit: string, value: string, set: (v: string) => void, placeholder: string, decimal = false) => (
+    <label htmlFor={`${id}-${date}`} className="block">
+      <span className="text-[0.6875rem] text-muted">{label}</span>
+      <span className="mt-1 flex h-9 items-center rounded-lg border border-line bg-surface px-2.5 focus-within:border-fg">
+        <input
+          id={`${id}-${date}`}
+          inputMode={decimal ? "decimal" : "numeric"}
+          value={value}
+          onChange={(e) => set(e.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="tabular min-w-0 flex-1 bg-transparent text-sm outline-none"
+        />
+        <span className="ml-1 text-[0.6875rem] text-muted">{unit}</span>
+      </span>
+    </label>
+  );
+
   return (
     <form
-      className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        const n = value.trim() === "" ? null : Number(value.replace(/[,\s]/g, ""));
-        if (n !== null && (!Number.isInteger(n) || n < 0 || n > 200_000)) {
-          setMessage("Enter a whole number of steps.");
-          return;
-        }
+        const s = parse(steps);
+        const sl = parse(sleep);
+        const ex = parse(exercise);
+        const w = parse(weight);
+        if (s === undefined || (s !== null && (!Number.isInteger(s) || s > 200_000))) return setMessage("Steps: a whole number, up to 200,000.");
+        if (sl === undefined || (sl !== null && sl > 24)) return setMessage("Sleep: hours, e.g. 7.5.");
+        if (ex === undefined || (ex !== null && (!Number.isInteger(ex) || ex > 1440))) return setMessage("Exercise: whole minutes.");
+        if (w === undefined || (w !== null && (w <= 0 || w > 500))) return setMessage("Weight: kilograms, e.g. 72.4.");
+
+        // Only send what changed, so an untouched imported value stays imported.
+        const payload: Record<string, number | null> = {};
+        if (s !== values.steps) payload.steps = s;
+        const sleepMin = sl === null ? null : Math.round(sl * 60);
+        if (sleepMin !== values.sleepMinutes) payload.sleepMinutes = sleepMin;
+        if (ex !== values.exerciseMinutes) payload.exerciseMinutes = ex;
+        if (w !== values.weight) payload.weight = w;
+        if (!Object.keys(payload).length) return onDone();
+
         setMessage(null);
         start(async () => {
-          const res = await saveDailyRecord(date, { steps: n });
-          if (res.ok) {
-            setMessage("Saved");
-          } else setMessage(res.error);
+          const res = await saveManualLog(date, payload);
+          if (res.ok) onDone();
+          else setMessage(res.error);
         });
       }}
     >
-      <label htmlFor={`steps-${date}`} className="text-xs text-muted">
-        Add steps
-      </label>
-      <input
-        id={`steps-${date}`}
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="e.g. 8,400"
-        autoComplete="off"
-        className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-fg"
-      />
-      <button type="submit" disabled={pending} className={buttonClass("secondary", "min-h-9 px-3 text-xs")}>
-        {pending ? "…" : "Save"}
-      </button>
+      <div className="grid grid-cols-2 gap-3">
+        {field("steps", "Steps", "", steps, setSteps, "8,400")}
+        {field("sleep", "Sleep", "h", sleep, setSleep, "7.5", true)}
+        {field("exercise", "Exercise", "min", exercise, setExercise, "45")}
+        {field("weight", "Weight", "kg", weight, setWeight, "72.4", true)}
+      </div>
       {message ? (
-        <span role="status" className="text-[0.6875rem] text-muted">
+        <p role="alert" className="mt-2 text-xs">
           {message}
-        </span>
+        </p>
       ) : null}
+      <div className="mt-3 flex gap-2">
+        <button type="submit" disabled={pending} className={buttonClass("primary", "min-h-9 flex-1 px-3 text-xs")}>
+          {pending ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={onDone} className={buttonClass("ghost", "min-h-9 px-3 text-xs")}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
