@@ -1,6 +1,8 @@
 package app.arc.bridge
 
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
+import androidx.health.connect.client.feature.ExperimentalFeatureAvailabilityApi
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
@@ -33,6 +35,23 @@ class HealthReader(private val client: HealthConnectClient) {
         )
         private val ISO: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
         private val AWAKE = setOf(SleepSessionRecord.STAGE_TYPE_AWAKE, SleepSessionRecord.STAGE_TYPE_OUT_OF_BED)
+    }
+
+    /**
+     * Android 14+ only lets an app read Health Connect from the background
+     * (our scheduled sync) with this extra permission. Null when the phone
+     * doesn't support it; older versions allow background reads anyway.
+     */
+    @OptIn(ExperimentalFeatureAvailabilityApi::class)
+    fun backgroundPermission(): String? =
+        if (client.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND) ==
+            HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        ) HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND else null
+
+    /** True when background sync can read Health Connect. */
+    suspend fun canReadInBackground(): Boolean {
+        val needed = backgroundPermission() ?: return true
+        return needed in client.permissionController.getGrantedPermissions()
     }
 
     /** ARC data types the user has granted. */

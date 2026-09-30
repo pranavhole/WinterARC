@@ -15,6 +15,8 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 /**
  * One screen: the ARC server + device token (filled in by the website's
@@ -39,7 +41,7 @@ class MainActivity : AppCompatActivity() {
         settings = BridgeSettings(this)
 
         requestPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) {
-            lifecycleScope.launch { showStatus() }
+            syncNow()
         }
 
         val pad = (20 * resources.displayMetrics.density).toInt()
@@ -73,7 +75,8 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 settings.serverUrl = server.text.toString().trim()
                 settings.token = token.text.toString().trim()
-                val wanted = choices.filterValues { it.isChecked }.keys.mapNotNull { HealthReader.PERMISSIONS[it] }.toSet()
+                val wanted = choices.filterValues { it.isChecked }.keys.mapNotNull { HealthReader.PERMISSIONS[it] }.toMutableSet()
+                reader()?.backgroundPermission()?.let { wanted += it }
                 if (wanted.isNotEmpty()) requestPermissions.launch(wanted)
                 Uploader.schedule(this@MainActivity)
             }
@@ -83,13 +86,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 settings.serverUrl = server.text.toString().trim()
                 settings.token = token.text.toString().trim()
-                status.text = "Syncing…"
-                lifecycleScope.launch {
-                    status.text = when (val r = Uploader.sync(this@MainActivity)) {
-                        is UploadResult.Ok -> "Synced. ${r.changedDays} day(s) updated."
-                        is UploadResult.Failed -> r.message
-                    }
-                }
+                syncNow()
             }
         })
 
@@ -98,6 +95,28 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
 
         if (!applySetupLink(intent)) lifecycleScope.launch { showStatus() }
+        // Existing installs move from the old daily schedule to every 15 minutes.
+        if (settings.configured && settings.token.isNotEmpty()) Uploader.schedule(this)
+    }
+
+    /** Opening the app always brings ARC up to date; no need to tap Sync. */
+    override fun onResume() {
+        super.onResume()
+        val recent = System.currentTimeMillis() - settings.lastSync < 60_000
+        if (settings.configured && settings.token.isNotEmpty() && !recent) syncNow()
+    }
+
+    private fun reader(): HealthReader? =
+        if (HealthConnectClient.getSdkStatus(this) == HealthConnectClient.SDK_AVAILABLE) HealthReader(HealthConnectClient.getOrCreate(this)) else null
+
+    private fun syncNow() {
+        status.text = "Syncing…"
+        lifecycleScope.launch {
+            when (val r = Uploader.sync(this@MainActivity)) {
+                is UploadResult.Ok -> showStatus()
+                is UploadResult.Failed -> status.text = r.message
+            }
+        }
     }
 
     /** The app was already open when the website's link was tapped. */
@@ -124,7 +143,15 @@ class MainActivity : AppCompatActivity() {
             status.text = "Install or update Health Connect to continue."
             return
         }
-        val granted = HealthReader(HealthConnectClient.getOrCreate(this)).grantedTypes()
-        status.text = if (granted.isEmpty()) "No access granted yet." else "Reading: ${granted.joinToString(", ")}. Syncs daily."
+        val reader = HealthReader(HealthConnectClient.getOrCreate(this))
+        val granted = reader.grantedTypes()
+        if (granted.isEmpty()) {
+            status.text = "No access granted yet. Tap Save and grant access."
+            return
+        }
+        val last = settings.lastSync.takeIf { it > 0 }?.let { "Last synced " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) + "." } ?: "Not synced yet."
+        val background = if (reader.canReadInBackground()) "Syncs every 15 minutes in the background."
+        else "Background sync is off: tap Save and grant access and allow \"Access data in the background\"."
+        status.text = listOf("Reading: ${granted.joinToString(", ")}.", last, background).joinToString(System.lineSeparator())
     }
 }

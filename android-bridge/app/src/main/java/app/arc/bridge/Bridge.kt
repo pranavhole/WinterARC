@@ -36,6 +36,11 @@ class BridgeSettings(context: Context) {
         get() = prefs.getString("token", "") ?: ""
         set(value) = prefs.edit().putString("token", value.trim()).apply()
 
+    /** Epoch millis of the last successful upload; 0 = never. */
+    var lastSync: Long
+        get() = prefs.getLong("lastSync", 0L)
+        set(value) = prefs.edit().putLong("lastSync", value).apply()
+
     val configured get() = serverUrl.startsWith("https://") || serverUrl.startsWith("http://10.0.2.2")
 }
 
@@ -68,6 +73,7 @@ object Uploader {
             connection.outputStream.use { it.write(payload.toString().toByteArray()) }
             when (val code = connection.responseCode) {
                 200 -> {
+                    settings.lastSync = System.currentTimeMillis()
                     val body = connection.inputStream.bufferedReader().readText()
                     UploadResult.Ok(Regex("\"changedDays\":(\\d+)").find(body)?.groupValues?.get(1)?.toInt() ?: 0)
                 }
@@ -82,9 +88,13 @@ object Uploader {
         }
     }
 
-    /** Daily background sync, only on a network connection. */
+    /**
+     * Background sync every 15 minutes (the shortest period Android allows for
+     * background work), only with a network connection. Android may stretch it
+     * when the battery is low or the phone is idle.
+     */
     fun schedule(context: Context) {
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(24, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork("arc-health-sync", ExistingPeriodicWorkPolicy.UPDATE, request)

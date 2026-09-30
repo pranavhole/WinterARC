@@ -23,6 +23,7 @@ import { FocusTracker } from "@/components/arc/day/focus-tracker";
 import { SleepTracker } from "@/components/arc/day/sleep-tracker";
 import { JournalBox } from "@/components/arc/day/journal-box";
 import { SleepChart, WeightTrend } from "@/components/arc/day/charts";
+import { AutoRefresh } from "@/components/arc/dashboard/auto-refresh";
 import { DashCard } from "@/components/arc/dashboard/card";
 import { FlipDate } from "@/components/arc/dashboard/flip-date";
 import { FocusInput } from "@/components/arc/dashboard/focus-card";
@@ -130,6 +131,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
 
   return (
     <div data-wide className="animate-fade">
+      <AutoRefresh />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
         {/* Left: the day */}
         <div className="min-w-0 space-y-5">
