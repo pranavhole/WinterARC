@@ -1,5 +1,6 @@
 package app.arc.bridge
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -16,26 +17,26 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 /**
- * One screen: paste the ARC server + device token, choose what ARC may read,
- * grant it in Health Connect, sync. Deliberately not a second ARC app.
+ * One screen: the ARC server + device token (filled in by the website's
+ * "Open in ARC app" link), what ARC may read, grant it in Health Connect, sync.
+ * Deliberately not a second ARC app.
  */
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val DEFAULT_SERVER = "https://winterarc-six-lac.vercel.app"
+    }
+
+    private lateinit var settings: BridgeSettings
+    private lateinit var server: EditText
+    private lateinit var token: EditText
     private lateinit var status: TextView
     private lateinit var requestPermissions: ActivityResultLauncher<Set<String>>
     private val choices = linkedMapOf<String, CheckBox>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val settings = BridgeSettings(this)
-
-        // Opened from the website's "Open in ARC app" link: take the server and token from it.
-        intent?.data?.let { link ->
-            if (link.scheme == "arcbridge" && link.host == "setup") {
-                link.getQueryParameter("server")?.takeIf { it.startsWith("https://") }?.let { settings.serverUrl = it }
-                link.getQueryParameter("token")?.takeIf { it.startsWith("arc_hc_") }?.let { settings.token = it }
-            }
-        }
+        settings = BridgeSettings(this)
 
         requestPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) {
             lifecycleScope.launch { showStatus() }
@@ -49,11 +50,15 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply { text = "Sends your daily steps, sleep, exercise and weight from Health Connect to your Arc. Nothing else." })
 
         root.addView(label("ARC address"))
-        val server = EditText(this).apply { hint = "https://your-arc.app"; setText(settings.serverUrl); inputType = InputType.TYPE_TEXT_VARIATION_URI }
+        server = EditText(this).apply {
+            hint = DEFAULT_SERVER
+            setText(settings.serverUrl.ifEmpty { DEFAULT_SERVER })
+            inputType = InputType.TYPE_TEXT_VARIATION_URI
+        }
         root.addView(server)
 
-        root.addView(label("Device token (ARC → Settings → Health)"))
-        val token = EditText(this).apply { hint = "arc_hc_…"; setText(settings.token); inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT }
+        root.addView(label("Device token (ARC website → Settings → Health)"))
+        token = EditText(this).apply { hint = "arc_hc_…"; setText(settings.token); inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT }
         root.addView(token)
 
         root.addView(label("What ARC may read"))
@@ -66,8 +71,8 @@ class MainActivity : AppCompatActivity() {
         root.addView(Button(this).apply {
             text = "Save and grant access"
             setOnClickListener {
-                settings.serverUrl = server.text.toString()
-                settings.token = token.text.toString()
+                settings.serverUrl = server.text.toString().trim()
+                settings.token = token.text.toString().trim()
                 val wanted = choices.filterValues { it.isChecked }.keys.mapNotNull { HealthReader.PERMISSIONS[it] }.toSet()
                 if (wanted.isNotEmpty()) requestPermissions.launch(wanted)
                 Uploader.schedule(this@MainActivity)
@@ -76,6 +81,8 @@ class MainActivity : AppCompatActivity() {
         root.addView(Button(this).apply {
             text = "Sync now"
             setOnClickListener {
+                settings.serverUrl = server.text.toString().trim()
+                settings.token = token.text.toString().trim()
                 status.text = "Syncing…"
                 lifecycleScope.launch {
                     status.text = when (val r = Uploader.sync(this@MainActivity)) {
@@ -89,7 +96,27 @@ class MainActivity : AppCompatActivity() {
         status = TextView(this).apply { setPadding(0, pad, 0, 0) }
         root.addView(status)
         setContentView(root)
-        lifecycleScope.launch { showStatus() }
+
+        if (!applySetupLink(intent)) lifecycleScope.launch { showStatus() }
+    }
+
+    /** The app was already open when the website's link was tapped. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applySetupLink(intent)
+    }
+
+    /** Fill in the server and token from arcbridge://setup?server=…&token=…. True when the link was used. */
+    private fun applySetupLink(intent: Intent?): Boolean {
+        val link = intent?.data ?: return false
+        if (link.scheme != "arcbridge" || link.host != "setup") return false
+        val linkServer = link.getQueryParameter("server")?.takeIf { it.startsWith("https://") }
+        val linkToken = link.getQueryParameter("token")?.takeIf { it.startsWith("arc_hc_") }
+        linkServer?.let { settings.serverUrl = it; server.setText(it) }
+        linkToken?.let { settings.token = it; token.setText(it) }
+        status.text = if (linkToken != null) "Linked to your Arc. Now tap Save and grant access." else "That link didn't include a token. Create a new one on the website."
+        return true
     }
 
     private suspend fun showStatus() {
