@@ -41,7 +41,15 @@ const LATE_HOUR = 21;
 
 export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const user = await requireUser();
-  const overview = await getArcOverview(user.id);
+  // Start everything that doesn't depend on the Arc at the same time as the Arc itself,
+  // instead of waiting for the Arc first. (getShareState reuses the cached overview.)
+  const [overview, xp, healthConnections, share, params] = await Promise.all([
+    getArcOverview(user.id),
+    getXpSummary(user.id),
+    getHealthConnections(user.id),
+    getShareState(user.id),
+    searchParams,
+  ]);
 
   if (!overview) {
     const previous = await getLatestFinishedArc(user.id);
@@ -50,13 +58,9 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   }
 
   const { arc, stats, recordsByDay, tasksByDay } = overview;
-  const date = resolveArcDate(arc, (await searchParams).date);
-  const [xp, healthConnections, healthDay, share] = await Promise.all([
-    getXpSummary(user.id),
-    getHealthConnections(user.id),
-    getHealthDay(user.id, date),
-    getShareState(user.id),
-  ]);
+  const date = resolveArcDate(arc, params.date);
+  // The only query that needs the resolved date.
+  const healthDay = await getHealthDay(user.id, date);
   const isToday = date === arc.today;
   const isFuture = date > arc.today;
   const editable = !isFuture;

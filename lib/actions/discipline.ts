@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { ensureDailyRecord } from "@/lib/arc";
-import { runAchievements } from "@/lib/gamification/achievements";
+import { scheduleAchievements } from "@/lib/gamification/achievements";
 import { isHabitActiveOn } from "@/lib/streaks";
 import { dateToKey, keyToDate } from "@/lib/utils";
 import { disciplineInputSchema } from "@/lib/validation";
@@ -36,13 +36,16 @@ export async function toggleDisciplineRule(ruleId: string, date: string, complet
     );
     if (!activeThatDay) return fail();
 
-    await ensureDailyRecord(arc, user.id, day);
-    await prisma.disciplineLog.upsert({
-      where: { ruleId_date: { ruleId: rule.id, date: keyToDate(day) } },
-      create: { ruleId: rule.id, userId: user.id, date: keyToDate(day), completed },
-      update: { completed },
-    });
-    await runAchievements(user.id, day);
+    // Independent writes: one round trip instead of two.
+    await Promise.all([
+      ensureDailyRecord(arc, user.id, day),
+      prisma.disciplineLog.upsert({
+        where: { ruleId_date: { ruleId: rule.id, date: keyToDate(day) } },
+        create: { ruleId: rule.id, userId: user.id, date: keyToDate(day), completed },
+        update: { completed },
+      }),
+    ]);
+    scheduleAchievements(user.id, day);
   } catch (error) {
     logError("toggleDisciplineRule", error);
     return fail();

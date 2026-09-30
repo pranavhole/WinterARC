@@ -1,6 +1,6 @@
 import { signInWithGoogle } from "@/lib/auth-actions";
 import { buttonClass } from "@/components/ui/button";
-import { GoogleIcon } from "@/components/ui/icons";
+import { GoogleSubmit } from "@/components/landing/google-submit";
 import { cn } from "@/lib/utils";
 
 export function GoogleButton({
@@ -16,17 +16,15 @@ export function GoogleButton({
 }) {
   return (
     <form action={signInWithGoogle} className={className}>
-      <button
-        type="submit"
+      <GoogleSubmit
+        label={label}
+        size={size}
         className={cn(
           buttonClass(variant),
           size === "sm" && "min-h-9 px-3 text-xs",
           variant === "primary" && "[&_svg]:rounded-full [&_svg]:bg-surface [&_svg]:p-0.5",
         )}
-      >
-        <GoogleIcon size={size === "sm" ? 14 : 18} />
-        {label}
-      </button>
+      />
     </form>
   );
 }

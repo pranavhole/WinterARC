@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { goalSnapshot } from "@/lib/arc";
 import { keyToDate } from "@/lib/utils";
 import { dailyRecordPatchSchema } from "@/lib/validation";
-import { runAchievements } from "@/lib/gamification/achievements";
+import { scheduleAchievements } from "@/lib/gamification/achievements";
 import { dayContext, fail, logError, OK, revalidateArc, type ActionResult } from "@/lib/actions/context";
 import type { DailyRecordPatch } from "@/lib/validation";
 
@@ -39,7 +39,7 @@ export async function saveDailyRecord(date: string, patch: unknown): Promise<Act
       create: { userId: user.id, arcId: arc.id, date: keyToDate(day), ...snapshot, ...patch },
       update: { ...patch, ...(day === arc.today ? snapshot : {}) },
     });
-    await runAchievements(user.id, day);
+    scheduleAchievements(user.id, day);
   } catch (error) {
     logError("saveDailyRecord", error);
     return fail();

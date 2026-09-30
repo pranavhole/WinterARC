@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { ensureDailyRecord, isEditableDay } from "@/lib/arc";
-import { runAchievements } from "@/lib/gamification/achievements";
+import { scheduleAchievements } from "@/lib/gamification/achievements";
 import { addDays, dateToKey, keyToDate } from "@/lib/utils";
 import { taskInputSchema, type TaskInput } from "@/lib/validation";
 import { arcContext, dayContext, fail, logError, OK, revalidateArc, type ActionResult } from "@/lib/actions/context";
@@ -48,7 +48,7 @@ export async function toggleTask(taskId: string, completed: boolean): Promise<Ac
     const owned = await ownedTask(taskId);
     if (!owned || owned.task.carriedTo) return fail();
     await prisma.dailyTask.update({ where: { id: owned.task.id }, data: { completed } });
-    await runAchievements(owned.user.id, dateToKey(owned.task.date));
+    scheduleAchievements(owned.user.id, dateToKey(owned.task.date));
   } catch (error) {
     logError("toggleTask", error);
     return fail();

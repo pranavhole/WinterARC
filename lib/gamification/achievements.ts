@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { loadArcOverview } from "@/lib/arc";
 import { BADGES, earnedBadgeKeys } from "@/lib/gamification/badges";
@@ -47,6 +48,14 @@ export async function runAchievements(userId: string, touchedDay?: DayKey) {
   } catch (error) {
     console.error("achievements failed", error);
   }
+}
+
+/**
+ * Run the engine after the response is sent, so a tap returns as soon as it's
+ * saved. New XP and badges appear on the next render.
+ */
+export function scheduleAchievements(userId: string, touchedDay?: DayKey) {
+  after(() => runAchievements(userId, touchedDay));
 }
 
 export async function evaluateAchievements(userId: string, touchedDay?: DayKey) {

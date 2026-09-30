@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { ensureDailyRecord } from "@/lib/arc";
-import { runAchievements } from "@/lib/gamification/achievements";
+import { scheduleAchievements } from "@/lib/gamification/achievements";
 import { MAX_HABITS } from "@/lib/arc-engine";
 import { isHabitActiveOn } from "@/lib/streaks";
 import { dateToKey, keyToDate } from "@/lib/utils";
@@ -11,16 +11,18 @@ import { arcContext, dayContext, fail, logError, OK, revalidateArc, type ActionR
 
 async function ownedHabit(arcId: string, userId: string, habitId: unknown) {
   if (typeof habitId !== "string" || habitId.length > 64) return null;
-  const habit = await prisma.habit.findFirst({
-    where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
-    select: { id: true, active: true, activeFrom: true, deactivatedOn: true, category: true },
-  });
+  // Look in both tables at once rather than one after the other.
+  const [habit, rule] = await Promise.all([
+    prisma.habit.findFirst({
+      where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
+      select: { id: true, active: true, activeFrom: true, deactivatedOn: true, category: true },
+    }),
+    prisma.disciplineRule.findFirst({
+      where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
+      select: { id: true, active: true, activeFrom: true, deactivatedOn: true },
+    }),
+  ]);
   if (habit) return { ...habit, isDisciplineModel: false };
-
-  const rule = await prisma.disciplineRule.findFirst({
-    where: { id: habitId, arcId, arc: { userId, status: "ACTIVE" } },
-    select: { id: true, active: true, activeFrom: true, deactivatedOn: true },
-  });
   if (rule) return { ...rule, category: "DISCIPLINE" as const, isDisciplineModel: true };
 
   return null;
@@ -46,24 +48,24 @@ export async function toggleHabit(habitId: string, date: string, completed: bool
     );
     if (!activeThatDay) return fail();
 
-    await ensureDailyRecord(arc, user.id, day);
+    // Independent writes: one round trip instead of two.
+    await Promise.all([
+      ensureDailyRecord(arc, user.id, day),
+      habit.isDisciplineModel
+        ? prisma.disciplineLog.upsert({
+            where: { ruleId_date: { ruleId: habit.id, date: keyToDate(day) } },
+            create: { ruleId: habit.id, userId: user.id, date: keyToDate(day), completed },
+            update: { completed },
+          })
+        : // A manual toggle overrides anything a health sync set, and sync never overwrites it.
+          prisma.habitLog.upsert({
+            where: { habitId_date: { habitId: habit.id, date: keyToDate(day) } },
+            create: { habitId: habit.id, userId: user.id, date: keyToDate(day), completed, source: "MANUAL" },
+            update: { completed, source: "MANUAL" },
+          }),
+    ]);
 
-    if (habit.isDisciplineModel) {
-      await prisma.disciplineLog.upsert({
-        where: { ruleId_date: { ruleId: habit.id, date: keyToDate(day) } },
-        create: { ruleId: habit.id, userId: user.id, date: keyToDate(day), completed },
-        update: { completed },
-      });
-    } else {
-      // A manual toggle overrides anything a health sync set, and sync never overwrites it.
-      await prisma.habitLog.upsert({
-        where: { habitId_date: { habitId: habit.id, date: keyToDate(day) } },
-        create: { habitId: habit.id, userId: user.id, date: keyToDate(day), completed, source: "MANUAL" },
-        update: { completed, source: "MANUAL" },
-      });
-    }
-
-    await runAchievements(user.id, day);
+    scheduleAchievements(user.id, day);
   } catch (error) {
     logError("toggleHabit", error);
     return fail();
