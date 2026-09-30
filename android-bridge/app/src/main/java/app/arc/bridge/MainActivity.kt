@@ -29,6 +29,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val settings = BridgeSettings(this)
 
+        // Opened from the website's "Open in ARC app" link: take the server and token from it.
+        intent?.data?.let { link ->
+            if (link.scheme == "arcbridge" && link.host == "setup") {
+                link.getQueryParameter("server")?.takeIf { it.startsWith("https://") }?.let { settings.serverUrl = it }
+                link.getQueryParameter("token")?.takeIf { it.startsWith("arc_hc_") }?.let { settings.token = it }
+            }
+        }
+
         requestPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) {
             lifecycleScope.launch { showStatus() }
         }

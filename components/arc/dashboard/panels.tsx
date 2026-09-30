@@ -84,6 +84,7 @@ export function TodayHealthCard({
   expired,
   canSync,
   timeZone,
+  actions,
 }: {
   metrics: TodayMetrics;
   syncedAt: Date | null;
@@ -91,6 +92,8 @@ export function TodayHealthCard({
   expired: boolean;
   canSync: boolean;
   timeZone: string;
+  /** Manual entry and the Google Fit guide (client). */
+  actions?: React.ReactNode;
 }) {
   const time = syncedAt ? syncedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone }) : null;
   const status = expired ? (
@@ -140,6 +143,7 @@ export function TodayHealthCard({
           <SyncButton />
         </div>
       ) : null}
+      {actions}
     </DashCard>
   );
 }

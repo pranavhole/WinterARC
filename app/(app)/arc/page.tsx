@@ -30,6 +30,7 @@ import { TaskList } from "@/components/arc/dashboard/task-list";
 import { WeekTracker, type WeekRow } from "@/components/arc/dashboard/week-tracker";
 import { ArcProgressCard, JourneyStrip, RecentBadges, TodayHealthCard } from "@/components/arc/dashboard/panels";
 import { MountainArt } from "@/components/landing/mountain-art";
+import { HealthActions } from "@/components/health/health-actions";
 import { MilestoneShareButton } from "@/components/gamification/badge-share-button";
 import type { ShareTarget } from "@/components/share/share-dialog";
 import { buttonClass } from "@/components/ui/button";
@@ -205,6 +206,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
               expired={!activeHealth.length && healthConnections.some((c) => c.status === "EXPIRED")}
               canSync={isToday && activeHealth.some((c) => c.provider === "GOOGLE_HEALTH")}
               timeZone={arc.timezone}
+              actions={<HealthActions date={date} steps={record?.steps ?? null} editable={editable} connected={activeHealth.length > 0} />}
             />
           ) : null}
 

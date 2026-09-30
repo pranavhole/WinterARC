@@ -12,6 +12,7 @@ import { HEALTH_DATA_LABELS, HEALTH_DATA_TYPES, type HealthDataType } from "@/li
 import { buttonClass } from "@/components/ui/button";
 import { CheckIcon } from "@/components/ui/icons";
 import { SyncButton } from "@/components/health/sync-button";
+import { ANDROID_APP_URL, androidSetupLink } from "@/lib/android";
 
 type Connection = { provider: "GOOGLE_HEALTH" | "HEALTH_CONNECT"; status: "ACTIVE" | "EXPIRED"; lastSyncedAt: string | null; dataTypes: HealthDataType[] };
 type Device = { id: string; name: string; lastUsedAt: string | null; createdAt: string };
@@ -171,8 +172,21 @@ function BridgeDevices({ devices, connected }: { devices: Device[]; connected: b
 
       {token ? (
         <div className="mt-3 rounded-lg border border-fg px-4 py-3">
-          <p className="text-sm">Paste this into the ARC bridge app. It&apos;s shown once.</p>
-          <code className="mt-2 block break-all rounded bg-subtle px-2 py-1.5 text-xs">{token}</code>
+          <p className="text-sm">On your Android phone:</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-muted">
+            <li>
+              <a href={ANDROID_APP_URL} className="text-fg underline underline-offset-4">
+                Install the ARC app
+              </a>{" "}
+              (allow installs from your browser when asked).
+            </li>
+            <li>Come back here and tap the button below. It fills in everything for you.</li>
+          </ol>
+          <a href={androidSetupLink(window.location.origin, token)} className={buttonClass("primary", "mt-3 min-h-9 w-full px-4 text-xs")}>
+            Open in ARC app
+          </a>
+          <p className="mt-3 text-xs text-muted">Or paste this token into the app yourself. It&apos;s shown once.</p>
+          <code className="mt-1.5 block break-all rounded bg-subtle px-2 py-1.5 text-xs">{token}</code>
           <button type="button" onClick={() => navigator.clipboard?.writeText(token).catch(() => undefined)} className="mt-2 text-xs underline underline-offset-4">
             Copy
           </button>

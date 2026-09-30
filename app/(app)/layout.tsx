@@ -8,6 +8,7 @@ import { syncIfStale } from "@/lib/health/sync";
 import { unreadNotificationCount } from "@/lib/social/notifications";
 import { BottomNav, SidebarNav } from "@/components/navigation/nav";
 import { BadgeUnlock } from "@/components/gamification/badge-unlock";
+import { AndroidAppBanner } from "@/components/android/app-banner";
 import { Avatar } from "@/components/ui/avatar";
 import { BellIcon, MountainIcon } from "@/components/ui/icons";
 import { Wordmark } from "@/components/ui/wordmark";
@@ -65,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* Pages that mark themselves data-wide (the Today dashboard) use the full width. */}
         <main className="w-full flex-1 px-4 pb-28 pt-2 sm:px-8 md:max-w-2xl md:px-12 md:pb-16 md:pt-0 md:has-data-wide:max-w-none">
+          <AndroidAppBanner />
           {children}
         </main>
       </div>

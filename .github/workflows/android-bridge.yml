@@ -1,0 +1,39 @@
+# Builds the ARC Android app (android-bridge/) and publishes it as a GitHub
+# Release, so the website can link to a stable download:
+#   https://github.com/<owner>/<repo>/releases/latest/download/arc-bridge.apk
+name: Android app
+
+on:
+  push:
+    branches: [main]
+    paths: ["android-bridge/**", ".github/workflows/android-bridge.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build APK
+        run: gradle -p android-bridge :app:assembleDebug --no-daemon
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android-bridge/app/build/outputs/apk/debug/app-debug.apk arc-bridge.apk
+          gh release create "android-${{ github.run_number }}" arc-bridge.apk \
+            --title "ARC for Android (build ${{ github.run_number }})" \
+            --notes "Syncs steps, sleep, exercise and weight from Health Connect to ARC. Install on Android: open this file, allow installs from your browser, tap Install." \
+            --latest
