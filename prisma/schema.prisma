@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // App queries: Supabase transaction pooler (port 6543, ?pgbouncer=true).
+  url       = env("DATABASE_URL")
+  // Migrations: session pooler or direct connection (port 5432).
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Auth.js ────────────────────────────────────────────────────────────────
@@ -166,15 +169,15 @@ model Arc {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers      AssessmentAnswer[]
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers         AssessmentAnswer[]
   habits          Habit[]
   disciplineRules DisciplineRule[]
   dailyRecords    DailyRecord[]
-  dailyTasks   DailyTask[]
-  timeBlocks   TimeBlock[]
-  xpEvents     XPEvent[]
-  posts        Post[]
+  dailyTasks      DailyTask[]
+  timeBlocks      TimeBlock[]
+  xpEvents        XPEvent[]
+  posts           Post[]
 
   @@index([userId])
   @@index([userId, status])
@@ -260,6 +263,8 @@ model DailyRecord {
   wakeTime     Int?
   sleepQuality Int?
   journal      String?    @db.Text
+  // "Today's Focus": one line the user sets for the day.
+  focus        String?
   // HEALTH when the value came from a health sync; a manual edit clears it.
   stepsSource  LogSource?
   sleepSource  LogSource?

@@ -266,3 +266,47 @@ export const CopyIcon = (p: IconProps) => (
   </Icon>
 );
 
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 6l6 6-6 6" />
+  </Icon>
+);
+export const MoonIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19.5 14.5A7.5 7.5 0 019.5 4.5a7.5 7.5 0 1010 10z" />
+  </Icon>
+);
+export const LockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="5.5" y="10.5" width="13" height="9.5" rx="2" />
+    <path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5" />
+  </Icon>
+);
+export const ActivityIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 12h3.5l2-5.5 4 11 2-5.5h5.5" />
+  </Icon>
+);
+export const DumbbellIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6.5 7v10M17.5 7v10M4 9.5v5M20 9.5v5M6.5 12h11" />
+  </Icon>
+);
+export const ScaleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+    <path d="M9 9.5a4 4 0 016 0l-2 2" />
+  </Icon>
+);
+export const SquareCheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" />
+    <path d="M8.5 12.2l2.3 2.3 4.7-4.7" />
+  </Icon>
+);
+export const HomeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 10.5L12 4.5l7.5 6V19a1 1 0 01-1 1H14v-5.5h-4V20H5.5a1 1 0 01-1-1v-8.5z" />
+  </Icon>
+);

@@ -43,3 +43,9 @@ export function BadgeMedal({ icon, earned, size = 44, className }: { icon: Badge
     </span>
   );
 }
+
+/** Just the badge's glyph, for custom frames (e.g. the dashboard's hexagons). */
+export function BadgeGlyph({ icon, size = 16, className }: { icon: BadgeIconKey; size?: number; className?: string }) {
+  const Glyph = ICONS[icon] ?? StarIcon;
+  return <Glyph size={size} className={className} />;
+}

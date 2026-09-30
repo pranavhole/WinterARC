@@ -57,6 +57,7 @@ export function SidebarNav({ unread }: { unread: number }) {
       <Link
         key={link.href}
         href={link.href}
+        prefetch={false}
         aria-current={active ? "page" : undefined}
         className={cn(
           "flex h-9 items-center gap-2.5 rounded-lg px-3 text-[0.8125rem] transition-colors",
@@ -93,6 +94,7 @@ export function BottomNav({ unread }: { unread: number }) {
             <li key={link.href}>
               <Link
                 href={link.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex h-16 flex-col items-center justify-center gap-1 text-[0.75rem] transition-colors",

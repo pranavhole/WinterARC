@@ -5,12 +5,16 @@ import { requireUser } from "@/lib/auth";
 import { getArcOverview, getLatestFinishedArc, resolveArcDate, type ArcOverview } from "@/lib/arc";
 import { focusGoalFor, isWeekend, sleepMinutes } from "@/lib/metrics";
 import { focusLabel } from "@/lib/modules";
-import { percent } from "@/lib/scoring";
-import { addDays, formatDay, getWeekDays, localHour, localMinutes, type DayKey } from "@/lib/utils";
+import { addDays, getWeekDays, localHour, localMinutes, type DayKey } from "@/lib/utils";
 import { weeklySummary } from "@/lib/weekly";
-import { DayAgenda, type AgendaMood } from "@/components/arc/day/day-agenda";
 import { blocksFor } from "@/lib/timetable";
-import { ArcHeatmap } from "@/components/arc/arc-heatmap";
+import { getDayFocus } from "@/lib/focus";
+import { getBadgeBoard, getXpSummary } from "@/lib/gamification/board";
+import { getHealthConnections, getHealthDay, SOURCE_LABEL } from "@/lib/health/view";
+import { dailyMessage } from "@/lib/motivation";
+import { milestoneKey, milestoneTitle, reachedMilestones } from "@/lib/social/milestones";
+import { getShareState } from "@/lib/social/posts";
+import { DayAgenda, type AgendaMood } from "@/components/arc/day/day-agenda";
 import { DayNav } from "@/components/arc/day/day-nav";
 import { DaySection } from "@/components/arc/day/section";
 import { StepsTracker } from "@/components/arc/day/steps-tracker";
@@ -19,20 +23,17 @@ import { FocusTracker } from "@/components/arc/day/focus-tracker";
 import { SleepTracker } from "@/components/arc/day/sleep-tracker";
 import { JournalBox } from "@/components/arc/day/journal-box";
 import { SleepChart, WeightTrend } from "@/components/arc/day/charts";
-import { DateFlapper } from "@/components/arc/day/date-flapper";
-import { WeeklyHabitGrid, type HabitGridItem } from "@/components/arc/weekly-habit-grid";
-import { buttonClass } from "@/components/ui/button";
-import { FlameIcon, MountainIcon } from "@/components/ui/icons";
-import { SectionLabel } from "@/components/ui/label";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { getXpSummary } from "@/lib/gamification/board";
-import { getHealthConnections, getHealthDay, SOURCE_LABEL } from "@/lib/health/view";
-import { dailyMessage } from "@/lib/motivation";
-import { milestoneKey, milestoneTitle, reachedMilestones } from "@/lib/social/milestones";
-import { getShareState } from "@/lib/social/posts";
-import { HealthToday } from "@/components/health/health-today";
+import { DashCard } from "@/components/arc/dashboard/card";
+import { FlipDate } from "@/components/arc/dashboard/flip-date";
+import { FocusInput } from "@/components/arc/dashboard/focus-card";
+import { TaskList } from "@/components/arc/dashboard/task-list";
+import { WeekTracker, type WeekRow } from "@/components/arc/dashboard/week-tracker";
+import { ArcProgressCard, JourneyStrip, RecentBadges, TodayHealthCard } from "@/components/arc/dashboard/panels";
+import { MountainArt } from "@/components/landing/mountain-art";
 import { MilestoneShareButton } from "@/components/gamification/badge-share-button";
 import type { ShareTarget } from "@/components/share/share-dialog";
+import { buttonClass } from "@/components/ui/button";
+import { MountainIcon, ShieldIcon, SquareCheckIcon, TargetIcon, TodayIcon } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -43,11 +44,12 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const user = await requireUser();
   // Start everything that doesn't depend on the Arc at the same time as the Arc itself,
   // instead of waiting for the Arc first. (getShareState reuses the cached overview.)
-  const [overview, xp, healthConnections, share, params] = await Promise.all([
+  const [overview, xp, healthConnections, share, badgeBoard, params] = await Promise.all([
     getArcOverview(user.id),
     getXpSummary(user.id),
     getHealthConnections(user.id),
     getShareState(user.id),
+    getBadgeBoard(user.id),
     searchParams,
   ]);
 
@@ -59,8 +61,8 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
 
   const { arc, stats, recordsByDay, tasksByDay } = overview;
   const date = resolveArcDate(arc, params.date);
-  // The only query that needs the resolved date.
-  const healthDay = await getHealthDay(user.id, date);
+  // The only queries that need the resolved date.
+  const [healthDay, focusLine] = await Promise.all([getHealthDay(user.id, date), getDayFocus(arc.id, user.id, date)]);
   const isToday = date === arc.today;
   const isFuture = date > arc.today;
   const editable = !isFuture;
@@ -102,110 +104,128 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
   const showMind = !isFuture && (m.focus || m.sleep);
   const showReflection = m.journal && !isFuture;
 
-  const gridHabits: HabitGridItem[] = overview.habits.map((h, i) => ({
-    id: h.id,
-    title: h.title,
-    category: h.category,
-    activeFrom: overview.snapshotHabits[i].activeFrom,
-    deactivatedOn: overview.snapshotHabits[i].deactivatedOn,
-  }));
-
+  // Weekly trackers: habits and discipline rules, Monday to Sunday of the selected day.
   const weekDays = getWeekDays(date);
+  const inWeek = (r: WeekRow) => weekDays.some((d) => d >= r.activeFrom && (!r.deactivatedOn || d < r.deactivatedOn));
+  const rows = overview.habits.map((h, i) => ({
+    row: { id: h.id, title: h.title, activeFrom: overview.snapshotHabits[i].activeFrom, deactivatedOn: overview.snapshotHabits[i].deactivatedOn },
+    discipline: h.category === "DISCIPLINE",
+  }));
+  const habitRows = rows.filter((r) => !r.discipline && inWeek(r.row)).map((r) => r.row);
+  const disciplineRows = rows.filter((r) => r.discipline && inWeek(r.row)).map((r) => r.row);
   const initialDone: Record<string, boolean> = {};
-  for (const day of weekDays) {
-    const doneSet = overview.doneByDay.get(day);
-    if (doneSet) {
-      for (const habitId of doneSet) {
-        initialDone[`${habitId}:${day}`] = true;
-      }
-    }
-  }
+  for (const day of weekDays) for (const id of overview.doneByDay.get(day) ?? []) initialDone[`${id}:${day}`] = true;
+
+  // TODAY card: imported health data first, then whatever was logged by hand.
+  const activeHealth = healthConnections.filter((c) => c.status === "ACTIVE");
+  const lastSync = activeHealth.map((c) => c.lastSyncedAt).filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const loggedSleep = record ? sleepMinutes(record.bedtime, record.wakeTime) : null;
+
+  const earnedBadges = badgeBoard
+    .filter((b) => b.earnedAt)
+    .sort((a, b) => b.earnedAt!.getTime() - a.earnedAt!.getTime())
+    .map((b) => ({ key: b.key, name: b.name, icon: b.icon }));
+  const dayBlocks = blocksFor(overview.blocks, date);
 
   return (
-    <div className="animate-fade">
-      {/* 1 · Arc day, completion, streak */}
-      <section aria-labelledby="day-heading">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <DateFlapper
-            dayNumber={dayNumber}
-            arcLength={arc.length}
-            date={date}
-            isToday={isToday}
-            daysRemaining={arc.daysLeft}
-            isFuture={isFuture}
-          />
-          <DayNav
-            prev={date > arc.startDate ? addDays(date, -1) : null}
-            next={date < arc.endDate ? addDays(date, 1) : null}
-            today={arc.today}
-            isToday={isToday}
-          />
+    <div data-wide className="animate-fade">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Left: the day */}
+        <div className="min-w-0 space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <FlipDate date={date} dayNumber={dayNumber} arcLength={arc.length} daysLeft={arc.daysLeft} isToday={isToday} isFuture={isFuture} />
+            <DayNav prev={date > arc.startDate ? addDays(date, -1) : null} next={date < arc.endDate ? addDays(date, 1) : null} today={arc.today} isToday={isToday} />
+          </div>
+
+          <DashCard icon={TargetIcon} title="Today's Focus">
+            <FocusInput key={date} date={date} initial={focusLine} editable={editable} />
+            {message ? <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-muted">{message.text}</p> : null}
+          </DashCard>
+
+          <DashCard icon={TodayIcon} title="Habits Tracker">
+            <WeekTracker
+              key={`h-${weekDays[0]}`}
+              variant="habits"
+              rows={habitRows}
+              weekDays={weekDays}
+              today={arc.today}
+              startDate={arc.startDate}
+              endDate={arc.endDate}
+              initialDone={initialDone}
+              empty="No habits this week. Add one in Settings."
+            />
+          </DashCard>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <DashCard icon={ShieldIcon} title="Discipline" href="/arc/settings">
+              <WeekTracker
+                key={`d-${weekDays[0]}`}
+                variant="discipline"
+                rows={disciplineRows}
+                weekDays={weekDays}
+                today={arc.today}
+                startDate={arc.startDate}
+                endDate={arc.endDate}
+                initialDone={initialDone}
+                empty="No discipline rules yet."
+              />
+            </DashCard>
+            <DashCard icon={SquareCheckIcon} title="Tasks" href={dayBlocks.length ? "#schedule" : undefined}>
+              <TaskList
+                key={date}
+                date={date}
+                editable={editable}
+                enabled={m.tasks}
+                tasks={tasks.filter((t) => !t.carriedTo).map((t) => ({ id: t.id, title: t.title, completed: t.completed }))}
+              />
+            </DashCard>
+          </div>
+
+          <JourneyStrip days={stats.days} today={arc.today} selected={date} />
         </div>
 
-        <div className="mt-7 rounded-2xl bg-subtle px-5 py-5">
-          <div className="flex items-baseline justify-between">
-            <p className="text-xs text-muted">{isToday ? "Today's Arc progress" : "Arc progress"}</p>
-            <p className="tabular text-2xl font-semibold">{isFuture ? "—" : percent(cell.score ?? 0)}</p>
+        {/* Right: numbers */}
+        <aside className="space-y-5" aria-label="Today at a glance">
+          <div className="hidden overflow-hidden rounded-2xl border border-line lg:block">
+            <MountainArt crop className="block h-44 w-full" />
           </div>
-          <ProgressBar value={cell.score ?? 0} label="Completion for this day" className="mt-3" />
-          <p className="tabular mt-4 flex items-center gap-2 text-xs text-muted">
-            <FlameIcon size={14} className="text-fg" />
-            {stats.currentStreak > 0 ? (
-              <span>
-                <span className="font-semibold text-fg">{stats.currentStreak} day streak</span> · best{" "}
-                {stats.bestStreak}
-              </span>
-            ) : (
-              <span>Reach 80% today to start a streak.</span>
-            )}
-          </p>
-          <div className="mt-4 flex items-center justify-between gap-4 border-t border-line pt-4 text-xs text-muted">
-            <Link href="/badges" className="tabular hover:text-fg">
-              Level {xp.level} · {xp.xp.toLocaleString("en-US")} XP
-            </Link>
-            {todayMilestone ? <MilestoneShareButton target={todayMilestone} label={`Share ${todayMilestone.title}`} /> : null}
-          </div>
-        </div>
 
-        {message ? <p className="mt-6 whitespace-pre-line text-center text-sm leading-relaxed text-muted">{message.text}</p> : null}
-      </section>
+          {!isFuture ? (
+            <TodayHealthCard
+              metrics={{
+                steps: healthDay?.steps ?? record?.steps ?? null,
+                stepGoal: record?.stepGoal ?? arc.goals.stepGoal,
+                sleepMinutes: healthDay?.sleepMinutes ?? loggedSleep,
+                sleepGoalMinutes: Math.round((record?.sleepGoal ?? arc.goals.sleepGoal) * 60),
+                exerciseMinutes: healthDay?.exerciseMinutes ?? null,
+                weight: healthDay?.weight ?? record?.weight ?? null,
+              }}
+              syncedAt={lastSync}
+              connected={activeHealth.length > 0}
+              expired={!activeHealth.length && healthConnections.some((c) => c.status === "EXPIRED")}
+              canSync={isToday && activeHealth.some((c) => c.provider === "GOOGLE_HEALTH")}
+              timeZone={arc.timezone}
+            />
+          ) : null}
 
-      {/* 2 · The day: rules, timetable and tasks in one list */}
-      <section aria-labelledby="day-list-heading" className="mt-8 border-t border-line pt-7">
-        <SectionLabel>
-          <span id="day-list-heading">{isToday ? "Today" : "This day"}</span>
-        </SectionLabel>
-        {isToday ? (
-          <p className="mt-2 text-sm text-muted">{formatDay(date, { weekday: "long", month: "long", day: "numeric" })}</p>
-        ) : null}
-        <DayAgenda
-          key={date}
-          date={date}
-          dayNumber={dayNumber}
-          mood={mood}
-          habits={overview.habitsOn(date)}
-          tasks={tasks}
-          blocks={blocksFor(overview.blocks, date)}
-          tasksEnabled={m.tasks}
-          canAddHabit={isToday}
-          canCarry={date < arc.endDate}
-          nowMinutes={isToday ? localMinutes(arc.timezone) : null}
-        />
-      </section>
+          <ArcProgressCard score={isFuture ? null : cell.score} streak={stats.currentStreak} level={xp.level} xp={xp.xp} />
+          {todayMilestone ? (
+            <div className="-mt-2 text-right">
+              <MilestoneShareButton target={todayMilestone} label={`Share ${todayMilestone.title}`} />
+            </div>
+          ) : null}
 
-      {/* 3 · Tracking modules the Arc uses */}
-      <div className="mt-8 space-y-6" key={date}>
+          <RecentBadges earned={earnedBadges} lockedCount={badgeBoard.length - earnedBadges.length} />
+        </aside>
+      </div>
 
+      {/* Logging the day: inputs for what isn't imported, the journal and the timetable. */}
+      <div className="mt-10 space-y-6" key={date}>
         {showBody ? (
           <DaySection title="Body">
             {m.steps ? (
               <div>
-                <StepsTracker
-                  date={date}
-                  initial={record?.steps ?? null}
-                  goal={record?.stepGoal ?? arc.goals.stepGoal}
-                  editable={editable}
-                />
+                <StepsTracker date={date} initial={record?.steps ?? null} goal={record?.stepGoal ?? arc.goals.stepGoal} editable={editable} />
                 {sourceNote(record?.stepsSource)}
               </div>
             ) : null}
@@ -261,36 +281,28 @@ export default async function TodayPage({ searchParams }: PageProps<"/arc">) {
           </DaySection>
         ) : null}
 
-        {!isFuture ? (
-          <DaySection title="Health">
-            <HealthToday
-              connections={healthConnections}
-              metric={healthDay}
-              stepGoal={record?.stepGoal ?? arc.goals.stepGoal}
-              timeZone={arc.timezone}
-              isToday={isToday}
-            />
-          </DaySection>
+        {dayBlocks.length ? (
+          <div id="schedule" className="scroll-mt-24">
+            <DaySection title="Schedule">
+              <DayAgenda
+                key={date}
+                date={date}
+                dayNumber={dayNumber}
+                mood={mood}
+                habits={overview.habitsOn(date)}
+                tasks={tasks}
+                blocks={dayBlocks}
+                tasksEnabled={m.tasks}
+                canAddHabit={isToday}
+                canCarry={date < arc.endDate}
+                nowMinutes={isToday ? localMinutes(arc.timezone) : null}
+              />
+            </DaySection>
+          </div>
         ) : null}
-      </div>
 
-      {/* 4 · Week and Arc */}
-      <div className="mt-6 space-y-6">
-        <DaySection title="Weekly Grid">
-          <WeeklyHabitGrid
-            selectedDate={date}
-            today={arc.today}
-            startDate={arc.startDate}
-            endDate={arc.endDate}
-            habits={gridHabits}
-            initialDone={initialDone}
-          />
-        </DaySection>
         <DaySection title="Last 7 days">
           <WeeklyBlock overview={overview} end={isFuture ? arc.today : date} />
-        </DaySection>
-        <DaySection title="Your Arc">
-          <ArcHeatmap days={stats.days} selected={date} today={arc.today} />
         </DaySection>
       </div>
     </div>

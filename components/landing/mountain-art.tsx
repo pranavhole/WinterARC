@@ -1,7 +1,7 @@
 /** Quiet, grayscale mountain study. Pure SVG: no image request. */
-export function MountainArt({ className }: { className?: string }) {
+export function MountainArt({ className, crop = false }: { className?: string; crop?: boolean }) {
   return (
-    <svg viewBox="0 0 400 520" className={className} role="img" aria-label="A snow-covered mountain peak">
+    <svg viewBox="0 0 400 520" preserveAspectRatio={crop ? "xMidYMid slice" : undefined} className={className} role="img" aria-label="A snow-covered mountain peak">
       <rect width="400" height="520" fill="#EFEEE9" />
       <circle cx="300" cy="120" r="34" fill="#F7F5F0" />
       <path d="M0 330 L70 270 L120 300 L190 230 L250 280 L310 240 L400 300 V520 H0Z" fill="#DDD9D0" />
