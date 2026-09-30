@@ -35,7 +35,7 @@ export function FlipDate({
       : "PAST DAY";
 
   return (
-    <div className="flex items-center gap-5 sm:gap-7">
+    <div className="flex min-w-0 items-center gap-4 sm:gap-7">
       <h1 className="sr-only">
         Day {dayNumber} of {arcLength}, {full}
       </h1>
@@ -56,12 +56,12 @@ export function FlipDate({
         <p className="tabular mt-0.5 text-[0.6875rem] font-medium tracking-[0.2em] text-[#f3f1ec]/80">{year}</p>
       </div>
 
-      <div className="min-w-0 border-l border-line pl-5 sm:pl-7">
-        <p className="text-[0.6875rem] font-medium tracking-[0.2em] text-muted">{weekday}</p>
-        <p className="tabular mt-2 text-[1.35rem] font-semibold tracking-[0.12em] sm:text-2xl">
+      <div className="min-w-0 border-l border-line pl-4 sm:pl-7">
+        <p className="whitespace-nowrap text-[0.6875rem] font-medium tracking-[0.2em] text-muted">{weekday}</p>
+        <p className="tabular mt-2 whitespace-nowrap text-[1.2rem] font-semibold tracking-[0.1em] sm:text-2xl sm:tracking-[0.12em]">
           DAY {dayNumber} / {arcLength}
         </p>
-        <p className="tabular mt-2 text-[0.75rem] font-medium tracking-[0.18em] text-muted">{sub}</p>
+        <p className="tabular mt-2 whitespace-nowrap text-[0.75rem] font-medium tracking-[0.16em] text-muted">{sub}</p>
       </div>
     </div>
   );

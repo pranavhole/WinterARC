@@ -105,40 +105,65 @@ export function WeekTracker({
     );
   }
 
+  const percentFor = (r: WeekRow) => {
+    const days = weekDays.filter((d) => active(r, d));
+    const count = days.filter((d) => shown[`${r.id}:${d}`]).length;
+    return days.length ? Math.round((count / days.length) * 100) : 0;
+  };
+
+  const box = (r: WeekRow, day: DayKey, big: boolean) => {
+    const on = !!shown[`${r.id}:${day}`];
+    const can = active(r, day) && day <= today;
+    return (
+      <button
+        key={day}
+        type="button"
+        disabled={!can}
+        onClick={() => toggle(r, day)}
+        aria-label={`${r.title}, ${formatDay(day, { weekday: "long" })}: ${on ? "done" : "not done"}`}
+        aria-pressed={on}
+        className={cn(
+          "flex items-center justify-center rounded-[4px] border transition-colors disabled:cursor-default",
+          big ? "h-8 w-full max-w-9 justify-self-center" : "h-[1.125rem] w-[1.125rem]",
+          on ? "border-fg bg-fg text-bg" : can ? "border-muted/60 bg-surface hover:border-fg" : "border-line bg-transparent",
+        )}
+      >
+        {on ? <CheckIcon size={big ? 14 : 12} strokeWidth={2.6} /> : null}
+      </button>
+    );
+  };
+
   return (
-    <div className="-mx-1 overflow-x-auto px-1">
-      <div className="grid min-w-[30rem] grid-cols-[minmax(7rem,1fr)_auto_7.5rem] items-center gap-x-4">
+    <div>
+      {/* Phones: one habit per block, name and % on top, the week underneath. */}
+      <div className="sm:hidden">
+        <div className="grid grid-cols-7 gap-1.5 pb-2">{dayHeaders}</div>
+        <ul className="divide-y divide-line border-t border-line">
+          {rows.map((r) => {
+            const pct = percentFor(r);
+            return (
+              <li key={r.id} className="py-3">
+                <div className="mb-2 flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-sm">{r.title}</span>
+                  <span className="tabular shrink-0 text-[0.6875rem] text-muted">{pct}%</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">{weekDays.map((day) => box(r, day, true))}</div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Wider screens: the spreadsheet row with a progress bar. */}
+      <div className="hidden grid-cols-[minmax(7rem,1fr)_auto_7.5rem] items-center gap-x-4 sm:grid">
         <span className="pb-2 text-[0.6875rem] text-muted">Habits</span>
         <span className="grid grid-cols-7 gap-2 pb-2">{dayHeaders}</span>
         <span className="pb-2 text-center text-[0.6875rem] text-muted">Progress</span>
         {rows.map((r) => {
-          const days = weekDays.filter((d) => active(r, d));
-          const count = days.filter((d) => shown[`${r.id}:${d}`]).length;
-          const pct = days.length ? Math.round((count / days.length) * 100) : 0;
+          const pct = percentFor(r);
           return (
             <Row key={r.id} title={r.title} border>
-              <span className="grid grid-cols-7 gap-2 border-t border-line py-2">
-                {weekDays.map((day) => {
-                  const on = !!shown[`${r.id}:${day}`];
-                  const can = active(r, day) && day <= today;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      disabled={!can}
-                      onClick={() => toggle(r, day)}
-                      aria-label={`${r.title}, ${formatDay(day, { weekday: "long" })}: ${on ? "done" : "not done"}`}
-                      aria-pressed={on}
-                      className={cn(
-                        "flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-[4px] border transition-colors disabled:cursor-default",
-                        on ? "border-fg bg-fg text-bg" : can ? "border-muted/60 bg-surface hover:border-fg" : "border-line bg-transparent",
-                      )}
-                    >
-                      {on ? <CheckIcon size={12} strokeWidth={2.6} /> : null}
-                    </button>
-                  );
-                })}
-              </span>
+              <span className="grid grid-cols-7 gap-2 border-t border-line py-2">{weekDays.map((day) => box(r, day, false))}</span>
               <span className="flex items-center gap-2.5 border-t border-line py-2">
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line/70" role="progressbar" aria-label={`${r.title} this week`} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
                   <span className="block h-full rounded-full bg-[#8a8778] transition-[width] duration-500" style={{ width: `${pct}%` }} />
