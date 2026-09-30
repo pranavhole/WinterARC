@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { homePath } from "@/lib/home";
 import { GoogleButton } from "@/components/landing/google-button";
 
 export const metadata: Metadata = {
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  if (await getCurrentUser()) redirect("/start");
+  const user = await getCurrentUser();
+  if (user) redirect(await homePath(user.id));
   const { error } = await searchParams;
 
   return (

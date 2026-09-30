@@ -1,10 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getActiveArc } from "@/lib/arc";
+import { homePath } from "@/lib/home";
 
-/** Post-login router: a plain HTTP redirect to the right place, before anything renders. */
+/**
+ * Landing URL after Google sign-in (a full-page GET), redirecting to the right place.
+ * Don't redirect() to this from a page or server action: use homePath() instead.
+ */
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
-  const target = !user ? "/login" : (await getActiveArc(user.id)) ? "/arc" : "/onboarding";
+  const target = user ? await homePath(user.id) : "/login";
   return NextResponse.redirect(new URL(target, request.url));
 }
