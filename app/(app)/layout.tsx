@@ -10,7 +10,7 @@ import { BottomNav, SidebarNav } from "@/components/navigation/nav";
 import { BadgeUnlock } from "@/components/gamification/badge-unlock";
 import { AndroidAppBanner } from "@/components/android/app-banner";
 import { Avatar } from "@/components/ui/avatar";
-import { BellIcon, MountainIcon } from "@/components/ui/icons";
+import { BellIcon, MountainIcon, SettingsIcon } from "@/components/ui/icons";
 import { Wordmark } from "@/components/ui/wordmark";
 
 export const metadata: Metadata = {
@@ -56,6 +56,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               <BellIcon size={18} />
               {unread ? <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-fg" /> : null}
+            </Link>
+            {/* The sidebar has Settings on desktop; the phone bottom bar has no room, so it lives here. */}
+            <Link
+              href="/arc/settings"
+              prefetch={false}
+              aria-label="Settings"
+              className="flex h-11 w-11 items-center justify-center text-muted hover:text-fg md:hidden"
+            >
+              <SettingsIcon size={18} />
             </Link>
             <Link href="/profile" prefetch={false} aria-label="Your profile" className="flex h-11 items-center gap-2.5 pl-1">
               <Avatar src={user.image} name={user.name} size={30} />

@@ -27,6 +27,9 @@ export default async function ProfilePage() {
             View as others see it
           </Link>
           <CopyLink path={`/u/${username}`} />
+          <Link href="/arc/settings" className={buttonClass("ghost", "min-h-9 px-4 text-xs")}>
+            Settings
+          </Link>
           <Link href="/arc/settings#privacy" className={buttonClass("ghost", "min-h-9 px-4 text-xs")}>
             Privacy
           </Link>
